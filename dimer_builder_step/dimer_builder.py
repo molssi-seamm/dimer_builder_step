@@ -406,6 +406,29 @@ class DimerBuilder(seamm.Node):
         distances = np.unique(np.clip(distances, 0.1, None))
         return distances
 
+    def _orient_to_principal_axes(self, xyz, masses):
+        """Center at the center of mass and rotate onto the principal axes.
+
+        Returns coordinates whose center of mass is at the origin and whose
+        principal axes of inertia are aligned with x/y/z, so a symmetric
+        molecule's rotation axis lands on a Cartesian axis. The transform is a
+        proper rotation (never a reflection), so chirality is preserved.
+        """
+        xyz = np.asarray(xyz, dtype=float)
+        masses = np.asarray(masses, dtype=float)
+        com = (masses[:, np.newaxis] * xyz).sum(axis=0) / masses.sum()
+        centered = xyz - com
+
+        inertia = np.zeros((3, 3))
+        for m, r in zip(masses, centered):
+            inertia += m * (np.dot(r, r) * np.eye(3) - np.outer(r, r))
+
+        # Eigenvectors (columns) are the principal axes, eigenvalues ascending.
+        _, axes = np.linalg.eigh(inertia)
+        if np.linalg.det(axes) < 0.0:
+            axes[:, 0] = -axes[:, 0]  # keep a proper rotation, not a reflection
+        return centered @ axes
+
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
         if P["input mode"] == "two monomer sets":
@@ -452,7 +475,7 @@ class DimerBuilder(seamm.Node):
             xyzA = np.array(
                 Ac.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
             )
-            xyzA = xyzA - xyzA.mean(axis=0)
+            xyzA = self._orient_to_principal_axes(xyzA, Ac.atoms.atomic_masses)
 
             # Monomer B carries all the randomness: a random orientation, and a
             # random approach direction along which it is scanned in and out.

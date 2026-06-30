@@ -176,10 +176,34 @@ def test_build_mode_a_monomer_a_is_fixed(db_two_waters):
         A = xyz[:3]
         if reference is None:
             reference = A
-            # A is centered at the origin.
-            assert np.allclose(A.mean(axis=0), [0.0, 0.0, 0.0], atol=1.0e-9)
+            # A is centered at its center of mass at the origin.
+            masses = np.asarray(conf.atoms.atomic_masses)[:3]
+            com = (masses[:, None] * A).sum(axis=0) / masses.sum()
+            assert np.allclose(com, [0.0, 0.0, 0.0], atol=1.0e-9)
         else:
             assert np.allclose(A, reference, atol=1.0e-9)
+
+
+def test_orient_to_principal_axes_diagonalizes_inertia():
+    """After reorientation the inertia tensor is diagonal (axes on x/y/z)."""
+    node = dimer_builder_step.DimerBuilder()
+    # A tilted water, arbitrary placement.
+    r0, theta0 = 0.9572, 104.52
+    x = r0 * math.sin(math.radians(theta0 / 2))
+    z = r0 * math.cos(math.radians(theta0 / 2))
+    xyz = np.array([[0.0, 0.0, 0.0], [x, 0.0, z], [-x, 0.0, z]]) + 5.0
+    R = node._orient_to_principal_axes(xyz, [15.999, 1.008, 1.008])
+
+    masses = np.array([15.999, 1.008, 1.008])
+    com = (masses[:, None] * R).sum(axis=0) / masses.sum()
+    inertia = np.zeros((3, 3))
+    for m, r in zip(masses, R - com):
+        inertia += m * (np.dot(r, r) * np.eye(3) - np.outer(r, r))
+    off_diag = inertia - np.diag(np.diag(inertia))
+    assert np.allclose(off_diag, 0.0, atol=1.0e-9)
+    # COM at the origin, and a proper rotation preserves bond lengths.
+    assert np.allclose(com, 0.0, atol=1.0e-9)
+    assert np.allclose(np.linalg.norm(R[1:] - R[0], axis=1), 0.9572, atol=1.0e-6)
 
 
 def test_build_mode_a_tags_properties(db_two_waters):
