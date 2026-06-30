@@ -69,6 +69,17 @@ def _P(**overrides):
     return P
 
 
+def _subset_atom_ids(db, conf, name):
+    """All atom ids in the named subsets of a configuration (or None)."""
+    if not db.templates.exists(name, "general"):
+        return None
+    template = db.templates.get(name, "general")
+    ids = []
+    for subset in conf.subsets.get(template):
+        ids.extend(subset.atoms.ids)
+    return ids
+
+
 # --------------------------------------------------------------------------- #
 # Pure helpers
 # --------------------------------------------------------------------------- #
@@ -235,6 +246,22 @@ def test_build_mode_a_no_severe_overlap(db_two_waters):
         assert np.all(D > 0.7 * Rsum)
 
 
+def test_build_mode_a_creates_fixed_movable_subsets(db_two_waters):
+    db = db_two_waters
+    node = dimer_builder_step.DimerBuilder()
+    system, stats = node._build(db, _P(), np.random.default_rng(8))
+
+    conf = system.configurations[0]
+    atom_ids = conf.atoms.ids
+    # A is 'fixed' (first 3 atoms), B is 'movable' (last 3).
+    assert set(_subset_atom_ids(db, conf, "fixed")) == set(atom_ids[:3])
+    assert set(_subset_atom_ids(db, conf, "movable")) == set(atom_ids[3:])
+    # Every configuration carries both subsets.
+    for c in system.configurations:
+        assert len(_subset_atom_ids(db, c, "fixed")) == 3
+        assert len(_subset_atom_ids(db, c, "movable")) == 3
+
+
 # --------------------------------------------------------------------------- #
 # Full build — Mode B (prepared dimers)
 # --------------------------------------------------------------------------- #
@@ -260,3 +287,53 @@ def test_build_mode_b_from_prepared_dimer(db_two_waters):
     assert len(system.configurations) == 8
     assert all(c.n_atoms == 6 for c in system.configurations)
     assert len({c.atomset for c in system.configurations}) == 1
+
+
+def test_build_mode_b_default_last_molecule_movable(db_two_waters):
+    db = db_two_waters
+    wA = db.get_system("A").configuration
+    wB = db.get_system("B").configuration
+    M = np.eye(4)
+    M[:3, 3] = [0.0, 0.0, 3.0]
+    db.create_combined_system([wA, wB], transforms=[None, M], name="dimer")
+
+    node = dimer_builder_step.DimerBuilder()
+    P = _P()
+    P["input mode"] = "prepared dimers"
+    P["monomer A"] = "dimer"
+    system, stats = node._build(db, P, np.random.default_rng(9))
+
+    conf = system.configurations[0]
+    out_ids = conf.atoms.ids
+    # No user subsets -> last molecule (atoms 3-5) is movable, rest fixed.
+    assert set(_subset_atom_ids(db, conf, "movable")) == set(out_ids[3:])
+    assert set(_subset_atom_ids(db, conf, "fixed")) == set(out_ids[:3])
+
+
+def test_build_mode_b_honors_user_subsets(db_two_waters):
+    db = db_two_waters
+    wA = db.get_system("A").configuration
+    wB = db.get_system("B").configuration
+    M = np.eye(4)
+    M[:3, 3] = [0.0, 0.0, 3.0]
+    dimer_sys = db.create_combined_system([wA, wB], transforms=[None, M], name="dimer")
+    d0 = dimer_sys.configuration
+
+    # The user designates the FIRST molecule as movable (overriding the default).
+    for nm in ("fixed", "movable"):
+        if not db.templates.exists(nm, "general"):
+            db.templates.create(name=nm, category="general")
+    ids = d0.atoms.ids
+    d0.subsets.create(template=db.templates.get("movable", "general"), atoms=ids[:3])
+    d0.subsets.create(template=db.templates.get("fixed", "general"), atoms=ids[3:])
+
+    node = dimer_builder_step.DimerBuilder()
+    P = _P()
+    P["input mode"] = "prepared dimers"
+    P["monomer A"] = "dimer"
+    system, stats = node._build(db, P, np.random.default_rng(10))
+
+    conf = system.configurations[0]
+    out_ids = conf.atoms.ids
+    # Movable follows the user's choice: the first molecule.
+    assert set(_subset_atom_ids(db, conf, "movable")) == set(out_ids[:3])

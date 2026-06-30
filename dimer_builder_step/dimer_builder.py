@@ -220,9 +220,11 @@ class DimerBuilder(seamm.Node):
             )
         else:
             text = (
-                f"Scan the prepared dimers from {P['monomer A']}, splitting each into "
-                "its two molecules by connectivity and scanning along their "
-                "center-to-center axis."
+                f"Scan the prepared structures from {P['monomer A']}, sliding the "
+                "'movable' group away from and into the 'fixed' group along their "
+                "center-to-center axis. The two groups are taken from 'fixed'/"
+                "'movable' subsets if present, otherwise the last molecule is "
+                "movable and the rest are fixed."
             )
 
         text += (
@@ -429,6 +431,59 @@ class DimerBuilder(seamm.Node):
             axes[:, 0] = -axes[:, 0]  # keep a proper rotation, not a reflection
         return centered @ axes
 
+    def _ensure_templates(self, system_db):
+        """Get (creating if needed) the 'fixed' and 'movable' subset templates."""
+        templates = system_db.templates
+        result = []
+        for name in ("fixed", "movable"):
+            if templates.exists(name, "general"):
+                result.append(templates.get(name, "general"))
+            else:
+                result.append(templates.create(name=name, category="general"))
+        return result
+
+    def _add_subsets(self, configuration, t_fixed, t_movable, fixed_ids, movable_ids):
+        """Tag the fixed and movable atom groups as subsets on a configuration."""
+        configuration.subsets.create(template=t_fixed, atoms=fixed_ids)
+        configuration.subsets.create(template=t_movable, atoms=movable_ids)
+
+    def _fixed_movable_indices(self, configuration):
+        """The fixed and movable atom groups (0-based indices) for a structure.
+
+        Uses 'fixed'/'movable' subsets on the configuration if present; otherwise
+        the last molecule (by connectivity) is movable and the rest are fixed.
+        """
+        system_db = configuration.system_db
+        atom_ids = configuration.atoms.ids
+        index_of = {atom_id: i for i, atom_id in enumerate(atom_ids)}
+
+        def subset_indices(name):
+            if not system_db.templates.exists(name, "general"):
+                return None
+            subsets = configuration.subsets.get(
+                system_db.templates.get(name, "general")
+            )
+            if not subsets:
+                return None
+            return sorted(index_of[aid] for s in subsets for aid in s.atoms.ids)
+
+        movable_idx = subset_indices("movable")
+        if movable_idx is None:
+            molecules = configuration.find_molecules(as_indices=True)
+            if len(molecules) < 2:
+                raise ValueError(
+                    "A prepared structure must contain at least two molecules (or "
+                    "'fixed'/'movable' subsets) to scan."
+                )
+            movable_idx = molecules[-1]
+
+        fixed_idx = subset_indices("fixed")
+        if fixed_idx is None:
+            movable_set = set(movable_idx)
+            fixed_idx = [i for i in range(len(atom_ids)) if i not in movable_set]
+
+        return fixed_idx, movable_idx
+
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
         if P["input mode"] == "two monomer sets":
@@ -458,6 +513,14 @@ class DimerBuilder(seamm.Node):
         name = self._system_name(P, A0.system.name, B0.system.name)
         dimer_sys = system_db.create_combined_system([A0, B0], name=name)
         base = dimer_sys.configuration
+
+        # Tag molecule A as 'fixed' and molecule B as 'movable'. The atom ids are
+        # shared across all conformers (one atomset), so compute them once.
+        nA = A0.n_atoms
+        atom_ids = base.atoms.ids
+        fixed_ids = atom_ids[:nA]
+        movable_ids = atom_ids[nA:]
+        t_fixed, t_movable = self._ensure_templates(system_db)
 
         A_radii = vdw_radii(A0.atoms.symbols)
         B_radii = vdw_radii(B0.atoms.symbols)
@@ -494,13 +557,20 @@ class DimerBuilder(seamm.Node):
                 self._name_and_tag(
                     conf, P, count + 1, orientation, d, d - contact, save_props
                 )
+                self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
                 count += 1
 
         return dimer_sys, self._stats(name, P["number of orientations"], separations)
 
     def _build_from_dimers(self, system_db, P):
-        """Mode B: radial profiles from prepared dimers (fixed orientation)."""
+        """Mode B: radial profiles from prepared complexes (fixed orientation).
+
+        The 'movable' group is slid out from / in toward the 'fixed' group along
+        their center-to-center axis, preserving the input relative orientation.
+        The two groups come from 'fixed'/'movable' subsets on the input if they
+        exist; otherwise the last molecule is movable and the rest are fixed.
+        """
         pool = self._resolve_pool(
             P["monomer A"],
             P["monomer A configurations"],
@@ -508,63 +578,66 @@ class DimerBuilder(seamm.Node):
             system_db,
         )
         if len(pool) == 0:
-            raise ValueError("No prepared dimers were found.")
+            raise ValueError("No prepared structures were found.")
 
         d0 = pool[0]
-        molecules = d0.find_molecules(as_indices=True)
-        if len(molecules) != 2:
-            raise ValueError(
-                "Each prepared dimer must contain exactly two molecules; found "
-                f"{len(molecules)}."
-            )
-        idxA, idxB = molecules[0], molecules[1]
+        fixed_idx, movable_idx = self._fixed_movable_indices(d0)
 
         name = self._system_name(P, d0.system.name, None)
         out_sys = system_db.create_combined_system([d0], name=name)
         base = out_sys.configuration
 
         radii = vdw_radii(d0.atoms.symbols)
-        A_radii, B_radii = radii[idxA], radii[idxB]
+        fixed_radii = radii[fixed_idx]
+        movable_radii = radii[movable_idx]
+
+        t_fixed, t_movable = self._ensure_templates(system_db)
+        atom_ids = base.atoms.ids
+        fixed_ids = [atom_ids[i] for i in fixed_idx]
+        movable_ids = [atom_ids[i] for i in movable_idx]
 
         save_props = self._truthy(P["save scan variables as properties"])
         count = 0
         separations = []
-        for orientation, dimer in enumerate(pool, start=1):
-            if dimer.n_atoms != d0.n_atoms:
+        orientation = 0
+        for orientation, structure in enumerate(pool, start=1):
+            if structure.n_atoms != d0.n_atoms:
                 self.logger.warning(
-                    f"Skipping '{dimer.name}': it has a different number of atoms "
-                    "than the first dimer (mixed compositions are not supported)."
+                    f"Skipping '{structure.name}': it has a different number of "
+                    "atoms than the first structure (mixed compositions are not "
+                    "supported)."
                 )
                 continue
             xyz = np.array(
-                dimer.atoms.get_coordinates(fractionals=False, as_array=True),
+                structure.atoms.get_coordinates(fractionals=False, as_array=True),
                 dtype=float,
             )
-            fragA = xyz[idxA]
-            fragB = xyz[idxB]
-            comA = fragA.mean(axis=0)
-            comB = fragB.mean(axis=0)
-            axis = comB - comA
+            fixed_xyz = xyz[fixed_idx]
+            movable_xyz = xyz[movable_idx]
+            fixed_center = fixed_xyz.mean(axis=0)
+            movable_center = movable_xyz.mean(axis=0)
+            axis = movable_center - fixed_center
             distance0 = np.linalg.norm(axis)
             if distance0 < 1.0e-6:
                 continue
             axis = axis / distance0
 
-            A_centered = fragA - comA
-            B_centered = fragB - comB
+            fixed_centered = fixed_xyz - fixed_center
+            movable_centered = movable_xyz - movable_center
             contact = self._contact_distance(
-                A_centered, A_radii, B_centered, B_radii, axis
+                fixed_centered, fixed_radii, movable_centered, movable_radii, axis
             )
 
             for d in self._separation_schedule(contact, P):
                 coordinates = np.empty_like(xyz)
-                coordinates[idxA] = A_centered
-                coordinates[idxB] = B_centered + axis * d
+                coordinates[fixed_idx] = fixed_centered
+                coordinates[movable_idx] = movable_centered + axis * d
                 conf = base if count == 0 else out_sys.copy_configuration(base)
                 conf.atoms.set_coordinates(coordinates, fractionals=False)
                 self._name_and_tag(
                     conf, P, count + 1, orientation, d, d - contact, save_props
                 )
+                self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
                 count += 1
 
