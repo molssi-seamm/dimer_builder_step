@@ -198,6 +198,55 @@ def test_build_mode_a_monomer_a_is_fixed(db_two_waters):
             assert np.allclose(A, reference, atol=1.0e-9)
 
 
+def test_direction_angles_known():
+    node = dimer_builder_step.DimerBuilder()
+    assert node._direction_angles([0.0, 0.0, 1.0]) == (0.0, 0.0)
+    th, ph = node._direction_angles([1.0, 0.0, 0.0])
+    assert math.isclose(th, 90.0) and math.isclose(ph, 0.0)
+    th, ph = node._direction_angles([0.0, 1.0, 0.0])
+    assert math.isclose(th, 90.0) and math.isclose(ph, 90.0)
+
+
+def test_euler_zyz_identity_and_roundtrip():
+    node = dimer_builder_step.DimerBuilder()
+    # Identity -> all zero.
+    assert node._euler_zyz(np.eye(3)) == (0.0, 0.0, 0.0)
+
+    # Round-trip: build R = Rz(a) Ry(b) Rz(c), extract, rebuild, compare.
+    def Rz(t):
+        c, s = math.cos(t), math.sin(t)
+        return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1.0]])
+
+    def Ry(t):
+        c, s = math.cos(t), math.sin(t)
+        return np.array([[c, 0, s], [0, 1.0, 0], [-s, 0, c]])
+
+    a, b, c = math.radians(40), math.radians(70), math.radians(20)
+    R = Rz(a) @ Ry(b) @ Rz(c)
+    alpha, beta, gamma = node._euler_zyz(R)
+    R2 = Rz(math.radians(alpha)) @ Ry(math.radians(beta)) @ Rz(math.radians(gamma))
+    assert np.allclose(R, R2, atol=1.0e-9)
+
+
+def test_build_mode_a_tags_geometry_properties(db_two_waters):
+    db = db_two_waters
+    node = dimer_builder_step.DimerBuilder()
+    system, stats = node._build(db, _P(), np.random.default_rng(11))
+
+    conf = system.configurations[0]
+    for name in (
+        "dimer separation",
+        "dimer gap",
+        "dimer orientation",
+        "approach theta",
+        "approach phi",
+        "movable alpha",
+        "movable beta",
+        "movable gamma",
+    ):
+        assert conf.properties.exists(f"{name}#DimerBuilder#scan")
+
+
 def test_orient_to_principal_axes_diagonalizes_inertia():
     """After reorientation the inertia tensor is diagonal (axes on x/y/z)."""
     node = dimer_builder_step.DimerBuilder()

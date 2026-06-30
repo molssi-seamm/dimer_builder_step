@@ -418,13 +418,12 @@ class DimerBuilder(seamm.Node):
         distances = np.unique(np.clip(distances, 0.1, None))
         return distances
 
-    def _orient_to_principal_axes(self, xyz, masses):
-        """Center at the center of mass and rotate onto the principal axes.
+    def _principal_axes(self, xyz, masses):
+        """The center of mass and the principal-axis rotation of a molecule.
 
-        Returns coordinates whose center of mass is at the origin and whose
-        principal axes of inertia are aligned with x/y/z, so a symmetric
-        molecule's rotation axis lands on a Cartesian axis. The transform is a
-        proper rotation (never a reflection), so chirality is preserved.
+        ``axes`` is a proper rotation (det = +1) whose columns are the principal
+        axes of inertia, ordered by ascending moment; centering ``xyz`` and
+        rotating by ``axes`` puts the molecule in its principal-axis frame.
         """
         xyz = np.asarray(xyz, dtype=float)
         masses = np.asarray(masses, dtype=float)
@@ -439,7 +438,39 @@ class DimerBuilder(seamm.Node):
         _, axes = np.linalg.eigh(inertia)
         if np.linalg.det(axes) < 0.0:
             axes[:, 0] = -axes[:, 0]  # keep a proper rotation, not a reflection
-        return centered @ axes
+        return com, axes
+
+    def _orient_to_principal_axes(self, xyz, masses):
+        """Coordinates centered at the COM and rotated onto the principal axes.
+
+        A symmetric molecule's rotation axis then lands on a Cartesian axis. The
+        transform is a proper rotation (never a reflection) so chirality is kept.
+        """
+        com, axes = self._principal_axes(xyz, masses)
+        return (np.asarray(xyz, dtype=float) - com) @ axes
+
+    def _direction_angles(self, axis):
+        """Polar (theta) and azimuthal (phi) angles of a vector, in degrees."""
+        axis = np.asarray(axis, dtype=float)
+        theta = np.degrees(np.arccos(np.clip(axis[2], -1.0, 1.0)))
+        phi = np.degrees(np.arctan2(axis[1], axis[0]))
+        return float(theta), float(phi)
+
+    def _euler_zyz(self, R):
+        """ZYZ Euler angles (alpha, beta, gamma) of a rotation matrix, degrees."""
+        R = np.asarray(R, dtype=float)
+        beta = np.arctan2(np.hypot(R[0, 2], R[1, 2]), R[2, 2])
+        if np.sin(beta) > 1.0e-8:
+            alpha = np.arctan2(R[1, 2], R[0, 2])
+            gamma = np.arctan2(R[2, 1], -R[2, 0])
+        else:  # gimbal lock: fold the two z-rotations together
+            alpha = np.arctan2(-R[0, 1], R[0, 0])
+            gamma = 0.0
+        return (
+            float(np.degrees(alpha)),
+            float(np.degrees(beta)),
+            float(np.degrees(gamma)),
+        )
 
     def _ensure_templates(self, system_db):
         """Get (creating if needed) the 'fixed' and 'movable' subset templates."""
@@ -542,30 +573,48 @@ class DimerBuilder(seamm.Node):
             Ac = A_pool[int(rng.integers(len(A_pool)))]
             Bc = B_pool[int(rng.integers(len(B_pool)))]
 
-            # Monomer A is held fixed: centered at the origin in its input
-            # orientation, so it is identical across the whole scan (and across
-            # orientations, for a single conformer) -- a clean visual anchor.
-            xyzA = np.array(
-                Ac.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
+            # Monomer A is held fixed: centered at the COM on its principal axes,
+            # so it is identical across the whole scan (and across orientations,
+            # for a single conformer) -- a clean visual anchor.
+            xyzA = self._orient_to_principal_axes(
+                np.array(Ac.atoms.get_coordinates(fractionals=False, as_array=True)),
+                Ac.atoms.atomic_masses,
             )
-            xyzA = self._orient_to_principal_axes(xyzA, Ac.atoms.atomic_masses)
 
-            # Monomer B carries all the randomness: a random orientation, and a
-            # random approach direction along which it is scanned in and out.
-            xyzB = np.array(
-                Bc.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
+            # Monomer B carries the randomness: its principal-axis frame is
+            # rotated by R_B, and it approaches from a random direction.
+            R_B = random_rotation_matrix(rng)
+            xyzB = (
+                self._orient_to_principal_axes(
+                    np.array(
+                        Bc.atoms.get_coordinates(fractionals=False, as_array=True)
+                    ),
+                    Bc.atoms.atomic_masses,
+                )
+                @ R_B.T
             )
-            xyzB = (xyzB - xyzB.mean(axis=0)) @ random_rotation_matrix(rng).T
             axis = rng.standard_normal(3)
             axis = axis / np.linalg.norm(axis)
+
+            theta, phi = self._direction_angles(axis)
+            alpha, beta, gamma = self._euler_zyz(R_B)
 
             contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
             for d in self._separation_schedule(contact, P):
                 coordinates = np.vstack([xyzA, xyzB + axis * d])
                 conf = base if count == 0 else dimer_sys.copy_configuration(base)
                 conf.atoms.set_coordinates(coordinates, fractionals=False)
+                geometry = {
+                    "separation": d,
+                    "gap": d - contact,
+                    "theta": theta,
+                    "phi": phi,
+                    "alpha": alpha,
+                    "beta": beta,
+                    "gamma": gamma,
+                }
                 self._name_and_tag(
-                    conf, P, count + 1, orientation, d, d - contact, save_props
+                    conf, P, count + 1, orientation, geometry, save_props
                 )
                 self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
@@ -600,6 +649,8 @@ class DimerBuilder(seamm.Node):
         radii = vdw_radii(d0.atoms.symbols)
         fixed_radii = radii[fixed_idx]
         movable_radii = radii[movable_idx]
+        masses = np.asarray(d0.atoms.atomic_masses)
+        movable_masses = masses[movable_idx]
 
         t_fixed, t_movable = self._ensure_templates(system_db)
         atom_ids = base.atoms.ids
@@ -638,14 +689,27 @@ class DimerBuilder(seamm.Node):
                 fixed_centered, fixed_radii, movable_centered, movable_radii, axis
             )
 
+            theta, phi = self._direction_angles(axis)
+            _, movable_axes = self._principal_axes(movable_xyz, movable_masses)
+            alpha, beta, gamma = self._euler_zyz(movable_axes)
+
             for d in self._separation_schedule(contact, P):
                 coordinates = np.empty_like(xyz)
                 coordinates[fixed_idx] = fixed_centered
                 coordinates[movable_idx] = movable_centered + axis * d
                 conf = base if count == 0 else out_sys.copy_configuration(base)
                 conf.atoms.set_coordinates(coordinates, fractionals=False)
+                geometry = {
+                    "separation": d,
+                    "gap": d - contact,
+                    "theta": theta,
+                    "phi": phi,
+                    "alpha": alpha,
+                    "beta": beta,
+                    "gamma": gamma,
+                }
                 self._name_and_tag(
-                    conf, P, count + 1, orientation, d, d - contact, save_props
+                    conf, P, count + 1, orientation, geometry, save_props
                 )
                 self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
@@ -662,25 +726,33 @@ class DimerBuilder(seamm.Node):
             return f"{name_a} + {name_b}"
         return requested
 
-    def _name_and_tag(self, conf, P, index, orientation, separation, gap, save_props):
-        """Name a generated configuration and optionally tag scan variables."""
+    def _name_and_tag(self, conf, P, index, orientation, geometry, save_props):
+        """Name a generated configuration and optionally tag its geometry.
+
+        ``geometry`` holds the scan coordinates for this configuration:
+        ``separation`` and ``gap`` (Å), the approach-direction angles ``theta``
+        and ``phi`` (degrees), and the movable group's ZYZ Euler angles
+        ``alpha``/``beta``/``gamma`` (degrees).
+        """
         if P["configuration name"] == "separation":
-            conf.name = f"{separation:.2f} Å"
+            conf.name = f"{geometry['separation']:.2f} Å"
         else:
             conf.name = str(index)
 
         if save_props:
+            p = "#DimerBuilder#scan"
             self._put_property(
-                conf, "dimer separation#DimerBuilder#scan", separation, "Å"
+                conf, f"dimer separation{p}", geometry["separation"], "Å"
             )
-            self._put_property(conf, "dimer gap#DimerBuilder#scan", gap, "Å")
+            self._put_property(conf, f"dimer gap{p}", geometry["gap"], "Å")
             self._put_property(
-                conf,
-                "dimer orientation#DimerBuilder#scan",
-                int(orientation),
-                None,
-                _type="int",
+                conf, f"dimer orientation{p}", int(orientation), None, _type="int"
             )
+            self._put_property(conf, f"approach theta{p}", geometry["theta"], "degree")
+            self._put_property(conf, f"approach phi{p}", geometry["phi"], "degree")
+            self._put_property(conf, f"movable alpha{p}", geometry["alpha"], "degree")
+            self._put_property(conf, f"movable beta{p}", geometry["beta"], "degree")
+            self._put_property(conf, f"movable gamma{p}", geometry["gamma"], "degree")
 
     def _put_property(self, conf, name, value, units, _type="float"):
         """Store a property on a configuration (defining it if not registered).
