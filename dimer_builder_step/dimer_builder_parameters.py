@@ -254,15 +254,18 @@ class DimerBuilderParameters(seamm.Parameters):
             ),
         },
         "configuration name": {
-            "default": "sequential",
+            "default": "orientation/distance",
             "kind": "string",
             "default_units": "",
-            "enumeration": ("sequential", "separation"),
+            "enumeration": ("orientation/distance", "separation", "sequential"),
             "format_string": "",
             "description": "Name the configurations:",
             "help_text": (
-                "How to name each generated configuration. 'sequential' numbers "
-                "them; 'separation' labels them by their separation."
+                "How to name each generated configuration. 'orientation/distance' "
+                "labels them by orientation and point index (1/1, 1/2, ..., 2/1, "
+                "...) so the points of one scan group together; 'separation' "
+                "labels them by their separation; 'sequential' numbers them 1, 2, "
+                "... across all configurations."
             ),
         },
         "save scan variables as properties": {

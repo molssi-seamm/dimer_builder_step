@@ -600,7 +600,7 @@ class DimerBuilder(seamm.Node):
             alpha, beta, gamma = self._euler_zyz(R_B)
 
             contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
-            for d in self._separation_schedule(contact, P):
+            for point, d in enumerate(self._separation_schedule(contact, P), start=1):
                 coordinates = np.vstack([xyzA, xyzB + axis * d])
                 conf = base if count == 0 else dimer_sys.copy_configuration(base)
                 conf.atoms.set_coordinates(coordinates, fractionals=False)
@@ -614,7 +614,7 @@ class DimerBuilder(seamm.Node):
                     "gamma": gamma,
                 }
                 self._name_and_tag(
-                    conf, P, count + 1, orientation, geometry, save_props
+                    conf, P, count + 1, orientation, point, geometry, save_props
                 )
                 self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
@@ -693,7 +693,7 @@ class DimerBuilder(seamm.Node):
             _, movable_axes = self._principal_axes(movable_xyz, movable_masses)
             alpha, beta, gamma = self._euler_zyz(movable_axes)
 
-            for d in self._separation_schedule(contact, P):
+            for point, d in enumerate(self._separation_schedule(contact, P), start=1):
                 coordinates = np.empty_like(xyz)
                 coordinates[fixed_idx] = fixed_centered
                 coordinates[movable_idx] = movable_centered + axis * d
@@ -709,7 +709,7 @@ class DimerBuilder(seamm.Node):
                     "gamma": gamma,
                 }
                 self._name_and_tag(
-                    conf, P, count + 1, orientation, geometry, save_props
+                    conf, P, count + 1, orientation, point, geometry, save_props
                 )
                 self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
                 separations.append(d)
@@ -726,18 +726,23 @@ class DimerBuilder(seamm.Node):
             return f"{name_a} + {name_b}"
         return requested
 
-    def _name_and_tag(self, conf, P, index, orientation, geometry, save_props):
+    def _name_and_tag(self, conf, P, index, orientation, point, geometry, save_props):
         """Name a generated configuration and optionally tag its geometry.
 
+        ``index`` is the global running count, ``orientation`` the orientation
+        number, and ``point`` the 1-based distance index within that orientation.
         ``geometry`` holds the scan coordinates for this configuration:
         ``separation`` and ``gap`` (Å), the approach-direction angles ``theta``
         and ``phi`` (degrees), and the movable group's ZYZ Euler angles
         ``alpha``/``beta``/``gamma`` (degrees).
         """
-        if P["configuration name"] == "separation":
+        naming = P["configuration name"]
+        if naming == "separation":
             conf.name = f"{geometry['separation']:.2f} Å"
-        else:
+        elif naming == "sequential":
             conf.name = str(index)
+        else:  # orientation/distance
+            conf.name = f"{orientation}/{point}"
 
         if save_props:
             p = "#DimerBuilder#scan"

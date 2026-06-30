@@ -62,7 +62,7 @@ def _P(**overrides):
         "number of separations": 8,
         "separations": "",
         "system name": "from monomers",
-        "configuration name": "sequential",
+        "configuration name": "orientation/distance",
         "save scan variables as properties": "yes",
     }
     P.update(overrides)
@@ -152,6 +152,20 @@ def test_build_mode_a_counts_and_atomset(db_two_waters):
     # ... and they are all conformers sharing a single atomset.
     assert len({c.atomset for c in system.configurations}) == 1
     assert system.name == "A + B"
+
+
+def test_build_mode_a_orientation_distance_names(db_two_waters):
+    db = db_two_waters
+    node = dimer_builder_step.DimerBuilder()
+    # 3 orientations x 4 separations, default 'orientation/distance' naming.
+    P = _P(spacing="explicit", separations="0.0, 1.0, 2.0, 3.0")
+    P["number of orientations"] = 3
+    system, stats = node._build(db, P, np.random.default_rng(12))
+
+    names = [c.name for c in system.configurations]
+    assert names[:4] == ["1/1", "1/2", "1/3", "1/4"]
+    assert names[4:8] == ["2/1", "2/2", "2/3", "2/4"]
+    assert names[-1] == "3/4"
 
 
 def test_build_mode_a_separation_range(db_two_waters):
