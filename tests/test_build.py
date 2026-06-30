@@ -164,6 +164,24 @@ def test_build_mode_a_preserves_monomer_geometry(db_two_waters):
     assert np.allclose(oh, 0.9572, atol=1.0e-3)
 
 
+def test_build_mode_a_monomer_a_is_fixed(db_two_waters):
+    """With a single A conformer, monomer A is identical in every frame."""
+    db = db_two_waters
+    node = dimer_builder_step.DimerBuilder()
+    system, stats = node._build(db, _P(), np.random.default_rng(7))
+
+    reference = None
+    for conf in system.configurations:
+        xyz = np.asarray(conf.atoms.get_coordinates(fractionals=False, as_array=True))
+        A = xyz[:3]
+        if reference is None:
+            reference = A
+            # A is centered at the origin.
+            assert np.allclose(A.mean(axis=0), [0.0, 0.0, 0.0], atol=1.0e-9)
+        else:
+            assert np.allclose(A, reference, atol=1.0e-9)
+
+
 def test_build_mode_a_tags_properties(db_two_waters):
     db = db_two_waters
     node = dimer_builder_step.DimerBuilder()

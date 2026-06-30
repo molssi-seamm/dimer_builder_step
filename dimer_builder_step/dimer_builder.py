@@ -438,7 +438,6 @@ class DimerBuilder(seamm.Node):
 
         A_radii = vdw_radii(A0.atoms.symbols)
         B_radii = vdw_radii(B0.atoms.symbols)
-        axis = np.array([0.0, 0.0, 1.0])
 
         save_props = self._truthy(P["save scan variables as properties"])
         count = 0
@@ -447,15 +446,22 @@ class DimerBuilder(seamm.Node):
             Ac = A_pool[int(rng.integers(len(A_pool)))]
             Bc = B_pool[int(rng.integers(len(B_pool)))]
 
+            # Monomer A is held fixed: centered at the origin in its input
+            # orientation, so it is identical across the whole scan (and across
+            # orientations, for a single conformer) -- a clean visual anchor.
             xyzA = np.array(
                 Ac.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
             )
-            xyzA = (xyzA - xyzA.mean(axis=0)) @ random_rotation_matrix(rng).T
+            xyzA = xyzA - xyzA.mean(axis=0)
 
+            # Monomer B carries all the randomness: a random orientation, and a
+            # random approach direction along which it is scanned in and out.
             xyzB = np.array(
                 Bc.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
             )
             xyzB = (xyzB - xyzB.mean(axis=0)) @ random_rotation_matrix(rng).T
+            axis = rng.standard_normal(3)
+            axis = axis / np.linalg.norm(axis)
 
             contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
             for d in self._separation_schedule(contact, P):
