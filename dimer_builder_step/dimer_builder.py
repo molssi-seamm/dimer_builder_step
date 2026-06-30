@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Non-graphical part of the Dimer Builder step in a SEAMM flowchart
-"""
+"""Non-graphical part of the Dimer Builder step in a SEAMM flowchart"""
 
 import logging
 from pathlib import Path
@@ -66,7 +65,7 @@ class DimerBuilder(seamm.Node):
         title="Dimer Builder",
         namespace="org.molssi.seamm.dimer_builder",
         extension=None,
-        logger=logger
+        logger=logger,
     ):
         """A step for Dimer Builder in a SEAMM flowchart.
 
@@ -93,9 +92,7 @@ class DimerBuilder(seamm.Node):
         """
         logger.debug(f"Creating Dimer Builder {self}")
         self.subflowchart = seamm.Flowchart(
-            parent=self,
-            name="Dimer Builder",
-            namespace=namespace
+            parent=self, name="Dimer Builder", namespace=namespace
         )  # yapf: disable
 
         super().__init__(
@@ -117,6 +114,7 @@ class DimerBuilder(seamm.Node):
     def git_revision(self):
         """The git version of this module."""
         return dimer_builder_step.__git_revision__
+
     def set_id(self, node_id):
         """Set the id for node to a given tuple"""
         self._id = node_id
@@ -151,9 +149,7 @@ class DimerBuilder(seamm.Node):
             try:
                 text += __(node.description_text(), indent=3 * " ").__str__()
             except Exception as e:
-                print(
-                    f"Error describing dimer_builder flowchart: {e} in {node}"
-                )
+                print(f"Error describing dimer_builder flowchart: {e} in {node}")
                 logger.critical(
                     f"Error describing dimer_builder flowchart: {e} in {node}"
                 )
@@ -200,9 +196,7 @@ class DimerBuilder(seamm.Node):
 
         local = seamm.ExecLocal()
         result = local.run(
-            cmd=["Dimer Builder", "-in", "molssi.dat"],
-            files=files,
-            return_files=[]
+            cmd=["Dimer Builder", "-in", "molssi.dat"], files=files, return_files=[]
         )  # yapf: disable
 
         if result is None:

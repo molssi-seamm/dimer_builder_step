@@ -10,7 +10,6 @@ import seamm
 from seamm_util import ureg, Q_, units_class  # noqa: F401
 
 
-
 class TkDimerBuilder(seamm.TkNode):
     """
     The graphical part of a Dimer Builder step in a flowchart.
@@ -125,9 +124,7 @@ class TkDimerBuilder(seamm.TkNode):
         self.dialog.geometry(f"{w}x{h}+{x}+{y}")
 
         self.tk_subflowchart = seamm.TkFlowchart(
-            master=frame,
-            flowchart=self.node.subflowchart,
-            namespace=self.namespace
+            master=frame, flowchart=self.node.subflowchart, namespace=self.namespace
         )
         self.tk_subflowchart.draw()
 
