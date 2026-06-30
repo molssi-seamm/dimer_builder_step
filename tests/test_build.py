@@ -226,9 +226,9 @@ def test_build_mode_a_tags_properties(db_two_waters):
     system, stats = node._build(db, _P(), np.random.default_rng(4))
 
     conf = system.configurations[0]
-    assert conf.properties.exists("dimer separation")
-    assert conf.properties.exists("dimer gap")
-    assert conf.properties.exists("dimer orientation")
+    assert conf.properties.exists("dimer separation#DimerBuilder#scan")
+    assert conf.properties.exists("dimer gap#DimerBuilder#scan")
+    assert conf.properties.exists("dimer orientation#DimerBuilder#scan")
 
 
 def test_build_mode_a_no_severe_overlap(db_two_waters):

@@ -1,1 +1,4 @@
 Property,Type,Units,Description,URL
+dimer separation#DimerBuilder#scan,float,Å,The center-to-center separation of the fixed and movable groups,
+dimer gap#DimerBuilder#scan,float,Å,The gap beyond the van der Waals contact distance (negative is overlap),
+dimer orientation#DimerBuilder#scan,int,,The index of the random relative orientation this configuration belongs to,

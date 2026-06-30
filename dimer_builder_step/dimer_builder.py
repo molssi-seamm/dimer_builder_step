@@ -279,6 +279,17 @@ class DimerBuilder(seamm.Node):
 
         new_system, stats = self._build(system_db, P, rng)
 
+        # The contact distance uses van der Waals radii from mendeleev. (The
+        # plug-in's own citation is added automatically by the base class.)
+        if "mendeleev" in self._bibliography:
+            self.references.cite(
+                raw=self._bibliography["mendeleev"],
+                alias="mendeleev",
+                module="dimer_builder_step",
+                level=2,
+                note="Van der Waals radii used to estimate the contact distance.",
+            )
+
         # Make the new system & its first configuration current
         system_db.system = new_system
         new_system.configuration = new_system.configurations[0].id
@@ -659,15 +670,28 @@ class DimerBuilder(seamm.Node):
             conf.name = str(index)
 
         if save_props:
-            self._put_property(conf, "dimer separation", separation, "Å")
-            self._put_property(conf, "dimer gap", gap, "Å")
-            self._put_property(conf, "dimer orientation", float(orientation), None)
+            self._put_property(
+                conf, "dimer separation#DimerBuilder#scan", separation, "Å"
+            )
+            self._put_property(conf, "dimer gap#DimerBuilder#scan", gap, "Å")
+            self._put_property(
+                conf,
+                "dimer orientation#DimerBuilder#scan",
+                int(orientation),
+                None,
+                _type="int",
+            )
 
-    def _put_property(self, conf, name, value, units):
-        """Define (once) and store a float property on a configuration."""
+    def _put_property(self, conf, name, value, units, _type="float"):
+        """Store a property on a configuration (defining it if not registered).
+
+        The scan properties are normally pre-registered from data/properties.csv;
+        the fallback definition here covers a configuration whose database lacks
+        that registration.
+        """
         properties = conf.properties
         if not properties.exists(name):
-            properties.add(name, "float", units=units, noerror=True)
+            properties.add(name, _type, units=units, noerror=True)
         properties.put(name, value)
 
     def _stats(self, name, n_seeds, separations):
