@@ -1,3 +1,6 @@
 seamm
 seamm-util
 seamm-widgets
+molsystem
+mendeleev<1.0
+numpy

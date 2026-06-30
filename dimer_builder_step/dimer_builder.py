@@ -5,12 +5,14 @@
 import logging
 import importlib.resources
 import pprint  # noqa: F401
-import sys
+
+import numpy as np
 
 import dimer_builder_step
 import molsystem
+from molsystem import random_rotation_matrix
 import seamm
-from seamm_util import getParser, ureg, Q_  # noqa: F401
+from seamm_util import getParser, parse_list, ureg, Q_, units_class  # noqa: F401
 import seamm_util.printing as printing
 from seamm_util.printing import FormattedText as __
 
@@ -31,6 +33,40 @@ path = importlib.resources.files("dimer_builder_step") / "data"
 csv_file = path / "properties.csv"
 if path.exists():
     molsystem.add_properties_from_file(csv_file)
+
+
+def vdw_radii(symbols):
+    """Van der Waals radii, in Å, for a list of element symbols.
+
+    Uses the mendeleev package (radii are tabulated in picometres). Falls back
+    to the Pyykkö covalent radius, then to 1.5 Å, for any element lacking a vdW
+    radius.
+
+    Parameters
+    ----------
+    symbols : [str]
+        The element symbols.
+
+    Returns
+    -------
+    numpy.ndarray
+        The van der Waals radii in Å, in the same order as ``symbols``.
+    """
+    import mendeleev
+
+    elements = mendeleev.element(list(symbols))
+    if not isinstance(elements, (list, tuple)):
+        elements = [elements]
+
+    radii = []
+    for element in elements:
+        r = element.vdw_radius
+        if r is None:
+            r = element.covalent_radius_pyykko
+        if r is None:
+            r = 150.0
+        radii.append(r / 100.0)  # picometres -> Å
+    return np.array(radii)
 
 
 class DimerBuilder(seamm.Node):
@@ -67,9 +103,6 @@ class DimerBuilder(seamm.Node):
         logger=logger,
     ):
         """A step for Dimer Builder in a SEAMM flowchart.
-
-        You may wish to change the title above, which is the string displayed
-        in the box representing the step in the flowchart.
 
         Parameters
         ----------
@@ -159,57 +192,69 @@ class DimerBuilder(seamm.Node):
             node = node.set_id((*node_id, str(n)))
             n += 1
 
-    def description_text(self, P=None):
+    def description_text(self, P=None, short=False):
         """Create the text description of what this step will do.
-        The dictionary of control values is passed in as P so that
-        the code can test values, etc.
 
         Parameters
         ----------
         P: dict
             An optional dictionary of the current values of the control
             parameters.
+        short : bool
+            If True, omit the description of the sub-flowchart steps.
+
         Returns
         -------
         str
             A description of the current step.
         """
-        self.subflowchart.root_directory = self.flowchart.root_directory
+        if P is None:
+            P = self.parameters.values_to_dict()
 
-        # Get the first real node
+        if P["input mode"] == "two monomer sets":
+            text = (
+                f"Build dimers from monomer A ({P['monomer A']}) and monomer B "
+                f"({P['monomer B']}), sampling {P['number of orientations']} random "
+                "relative orientations (each a random conformer of A and of B at a "
+                "random orientation)."
+            )
+        else:
+            text = (
+                f"Scan the prepared dimers from {P['monomer A']}, splitting each into "
+                "its two molecules by connectivity and scanning along their "
+                "center-to-center axis."
+            )
+
+        text += (
+            f" For each, locate the contact distance using the '{P['contact method']}' "
+            f"method, then scan the center-to-center separation from an innermost gap "
+            f"of {P['innermost gap']} out to {P['maximum separation']} with "
+            f"{P['number of separations']} points ({P['spacing']} spacing). The "
+            f"configurations are stored in a new system named '{P['system name']}'."
+        )
+
+        result = self.header + "\n\n" + str(__(text, indent=4 * " "))
+
         node = self.subflowchart.get_node("1").next()
+        if not short and node is not None:
+            result += "\n\n"
+            result += str(
+                __(
+                    "The following sub-flowchart is available for energy-based "
+                    "options (e.g. the 'energy' contact method):",
+                    indent=4 * " ",
+                )
+            )
+            result += "\n\n"
+            while node is not None:
+                result += str(__(node.description_text(), indent=7 * " ", wrap=False))
+                result += "\n"
+                node = node.next()
 
-        text = self.header + "\n\n"
-        while node is not None:
-            try:
-                text += __(node.description_text(), indent=3 * " ").__str__()
-            except Exception as e:
-                print(f"Error describing dimer_builder flowchart: {e} in {node}")
-                logger.critical(
-                    f"Error describing dimer_builder flowchart: {e} in {node}"
-                )
-                raise
-            except:  # noqa: E722
-                print(
-                    "Unexpected error describing dimer_builder flowchart: "
-                    f"{sys.exc_info()[0]} in {str(node)}"
-                )
-                self.logger.critical(
-                    "Unexpected error describing dimer_builder flowchart: "
-                    f"{sys.exc_info()[0]} in {str(node)}"
-                )
-                raise
-            text += "\n"
-            node = node.next()
-
-        return text
+        return result
 
     def run(self):
         """Run a Dimer Builder step.
-
-        Parameters
-        ----------
-        None
 
         Returns
         -------
@@ -217,61 +262,322 @@ class DimerBuilder(seamm.Node):
             The next node object in the flowchart.
         """
         next_node = super().run(printer)
-        # Get the first real node
-        node = self.subflowchart.get_node("1").next()
 
-        input_data = []
-        while node is not None:
-            keywords = node.get_input()
-            input_data.append(" ".join(keywords))
-            node = node.next()
+        # Get the values of the parameters, dereferencing any variables
+        P = self.parameters.current_values_to_dict(
+            context=seamm.flowchart_variables._data
+        )
 
-        files = {"molssi.dat": "\n".join(input_data)}
-        logger.info("molssi.dat:\n" + files["molssi.dat"])
+        # Print what we are about to do
+        printer.important(__(self.description_text(P, short=True), indent=self.indent))
+        printer.important("")
 
-        local = seamm.ExecLocal()
-        result = local.run(
-            cmd=["Dimer Builder", "-in", "molssi.dat"], files=files, return_files=[]
-        )  # yapf: disable
+        system_db = self.get_variable("_system_db")
+        rng = self._make_rng(P["random seed"])
 
-        if result is None:
-            logger.error("There was an error running Dimer Builder")
-            return None
+        new_system, stats = self._build(system_db, P, rng)
 
-        logger.debug("\n" + pprint.pformat(result))
+        # Make the new system & its first configuration current
+        system_db.system = new_system
+        new_system.configuration = new_system.configurations[0].id
 
-        logger.info("stdout:\n" + result["stdout"])
-        if result["stderr"] != "":
-            logger.warning("stderr:\n" + result["stderr"])
-
-        # Analyze the results
-        self.analyze()
-        # Add other citations here or in the appropriate place in the code.
-        # Add the bibtex to data/references.bib, and add a self.reference.cite
-        # similar to the above to actually add the citation to the references.
+        self.analyze(P=P, stats=stats)
 
         return next_node
 
-    def analyze(self, indent="", **kwargs):
-        """Do any analysis of the output from this step.
+    def analyze(self, P=None, stats=None, indent="", **kwargs):
+        """Summarize what was generated."""
+        if stats is None:
+            return
 
-        Also print important results to the local step.out file using
-        "printer".
+        text = (
+            f"Created {stats['n_configurations']} configurations in the system "
+            f"'{stats['system']}' from {stats['n_seeds']} "
+            f"{'orientation' if stats['n_seeds'] == 1 else 'orientations'}, with "
+            f"center-to-center separations from {stats['min_separation']:.2f} to "
+            f"{stats['max_separation']:.2f} Å."
+        )
+        printer.important(__(text, indent=4 * " "))
+        printer.important("")
 
-        Parameters
-        ----------
-        indent: str
-            An extra indentation for the output
+    # ----------------------------------------------------------------- #
+    # Implementation helpers
+    # ----------------------------------------------------------------- #
+
+    def _make_rng(self, seed):
+        """A numpy random generator from the 'random seed' parameter."""
+        if isinstance(seed, str):
+            if seed.strip() == "" or seed.strip().lower() == "random":
+                return np.random.default_rng()
+            seed = int(seed)
+        return np.random.default_rng(int(seed))
+
+    def _resolve_pool(self, spec, configurations, name, system_db):
+        """Resolve an input specification to a list of configurations.
+
+        ``spec`` is either an already-dereferenced list of configurations (from a
+        ``$variable``), or a string: 'current', a system name, or '$variable'.
+        ``configurations``/``name`` select within a system (ignored for a list).
         """
-        # Get the first real node
-        node = self.subflowchart.get_node("1").next()
+        # A variable holding a list of configurations: use all of them.
+        if not isinstance(spec, str):
+            return list(spec)
 
-        # Loop over the subnodes, asking them to do their analysis
-        while node is not None:
-            for value in node.description:
-                printer.important(value)
-                printer.important(" ")
+        spec = spec.strip()
+        if spec.startswith("$"):
+            value = self.get_variable(spec[1:])
+            return list(value)
 
-            node.analyze()
+        if spec == "" or spec.lower() == "current":
+            system = system_db.system
+        else:
+            system = system_db.get_system(spec)
 
-            node = node.next()
+        return self._select_configurations(system, configurations, name)
+
+    def _select_configurations(self, system, how, name):
+        """Pick configurations from a system, mirroring the loop step."""
+        configurations = system.configurations
+        if how == "all":
+            return configurations
+        elif how == "last":
+            return [configurations[-1]]
+        elif how == "first":
+            return [configurations[0]]
+        elif how == "name is":
+            return [c for c in configurations if c.name == name]
+        elif how == "name matches":
+            import fnmatch
+
+            return [c for c in configurations if fnmatch.fnmatch(c.name, name)]
+        elif how == "name regexp":
+            import re
+
+            pattern = re.compile(name)
+            return [c for c in configurations if pattern.search(c.name)]
+        else:
+            raise ValueError(f"Unknown configuration selector '{how}'.")
+
+    def _contact_distance(self, A_xyz, A_radii, B_xyz, B_radii, axis):
+        """The center-to-center distance at which A and B first touch.
+
+        A is fixed with its center at the origin; B (center at the origin) is slid
+        along ``axis`` to a center-to-center distance ``d``. This returns the
+        largest ``d`` at which any atom pair is in van der Waals contact -- i.e.
+        the onset of contact as B is brought in from infinity.
+        """
+        axis = np.asarray(axis, dtype=float)
+        W = A_xyz[:, np.newaxis, :] - B_xyz[np.newaxis, :, :]  # (nA, nB, 3)
+        wu = W @ axis  # (nA, nB)
+        w2 = np.einsum("ijk,ijk->ij", W, W)
+        R = A_radii[:, np.newaxis] + B_radii[np.newaxis, :]  # (nA, nB)
+        disc = wu**2 - w2 + R**2
+        mask = disc >= 0.0
+        if not mask.any():
+            # No pair can touch along this axis; fall back to the closest approach.
+            return float(np.max(wu))
+        return float(np.max(wu[mask] + np.sqrt(disc[mask])))
+
+    def _separation_schedule(self, contact, P):
+        """Center-to-center distances for the radial scan of one orientation.
+
+        The scan coordinate is the gap beyond contact (0 = touching). Geometric
+        spacing clusters points near contact; an explicit list is given as gaps.
+        """
+        inner_gap = P["innermost gap"].to("Å").magnitude
+        max_sep = P["maximum separation"].to("Å").magnitude
+        n = P["number of separations"]
+        spacing = P["spacing"]
+
+        if spacing == "explicit":
+            gaps = np.array(parse_list(P["separations"]), dtype=float)
+            distances = contact + gaps
+        elif spacing == "linear":
+            distances = np.linspace(contact + inner_gap, max_sep, n)
+        else:  # geometric
+            g_max = max_sep - contact
+            if g_max <= 0.1:
+                distances = np.array([contact + inner_gap, contact + 0.5])
+            else:
+                positive = np.geomspace(0.05, g_max, max(n - 1, 1))
+                gaps = np.concatenate(([inner_gap], positive))
+                distances = contact + gaps
+
+        distances = np.unique(np.clip(distances, 0.1, None))
+        return distances
+
+    def _build(self, system_db, P, rng):
+        """Generate the dimer configurations. Returns (system, stats)."""
+        if P["input mode"] == "two monomer sets":
+            return self._build_from_monomers(system_db, P, rng)
+        else:
+            return self._build_from_dimers(system_db, P)
+
+    def _build_from_monomers(self, system_db, P, rng):
+        """Mode A: assemble dimers from two monomer conformer pools."""
+        A_pool = self._resolve_pool(
+            P["monomer A"],
+            P["monomer A configurations"],
+            P["monomer A configuration name"],
+            system_db,
+        )
+        B_pool = self._resolve_pool(
+            P["monomer B"],
+            P["monomer B configurations"],
+            P["monomer B configuration name"],
+            system_db,
+        )
+        if len(A_pool) == 0 or len(B_pool) == 0:
+            raise ValueError("Both monomer A and monomer B must supply structures.")
+
+        A0, B0 = A_pool[0], B_pool[0]
+
+        name = self._system_name(P, A0.system.name, B0.system.name)
+        dimer_sys = system_db.create_combined_system([A0, B0], name=name)
+        base = dimer_sys.configuration
+
+        A_radii = vdw_radii(A0.atoms.symbols)
+        B_radii = vdw_radii(B0.atoms.symbols)
+        axis = np.array([0.0, 0.0, 1.0])
+
+        save_props = self._truthy(P["save scan variables as properties"])
+        count = 0
+        separations = []
+        for orientation in range(1, P["number of orientations"] + 1):
+            Ac = A_pool[int(rng.integers(len(A_pool)))]
+            Bc = B_pool[int(rng.integers(len(B_pool)))]
+
+            xyzA = np.array(
+                Ac.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
+            )
+            xyzA = (xyzA - xyzA.mean(axis=0)) @ random_rotation_matrix(rng).T
+
+            xyzB = np.array(
+                Bc.atoms.get_coordinates(fractionals=False, as_array=True), dtype=float
+            )
+            xyzB = (xyzB - xyzB.mean(axis=0)) @ random_rotation_matrix(rng).T
+
+            contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
+            for d in self._separation_schedule(contact, P):
+                coordinates = np.vstack([xyzA, xyzB + axis * d])
+                conf = base if count == 0 else dimer_sys.copy_configuration(base)
+                conf.atoms.set_coordinates(coordinates, fractionals=False)
+                self._name_and_tag(
+                    conf, P, count + 1, orientation, d, d - contact, save_props
+                )
+                separations.append(d)
+                count += 1
+
+        return dimer_sys, self._stats(name, P["number of orientations"], separations)
+
+    def _build_from_dimers(self, system_db, P):
+        """Mode B: radial profiles from prepared dimers (fixed orientation)."""
+        pool = self._resolve_pool(
+            P["monomer A"],
+            P["monomer A configurations"],
+            P["monomer A configuration name"],
+            system_db,
+        )
+        if len(pool) == 0:
+            raise ValueError("No prepared dimers were found.")
+
+        d0 = pool[0]
+        molecules = d0.find_molecules(as_indices=True)
+        if len(molecules) != 2:
+            raise ValueError(
+                "Each prepared dimer must contain exactly two molecules; found "
+                f"{len(molecules)}."
+            )
+        idxA, idxB = molecules[0], molecules[1]
+
+        name = self._system_name(P, d0.system.name, None)
+        out_sys = system_db.create_combined_system([d0], name=name)
+        base = out_sys.configuration
+
+        radii = vdw_radii(d0.atoms.symbols)
+        A_radii, B_radii = radii[idxA], radii[idxB]
+
+        save_props = self._truthy(P["save scan variables as properties"])
+        count = 0
+        separations = []
+        for orientation, dimer in enumerate(pool, start=1):
+            if dimer.n_atoms != d0.n_atoms:
+                self.logger.warning(
+                    f"Skipping '{dimer.name}': it has a different number of atoms "
+                    "than the first dimer (mixed compositions are not supported)."
+                )
+                continue
+            xyz = np.array(
+                dimer.atoms.get_coordinates(fractionals=False, as_array=True),
+                dtype=float,
+            )
+            fragA = xyz[idxA]
+            fragB = xyz[idxB]
+            comA = fragA.mean(axis=0)
+            comB = fragB.mean(axis=0)
+            axis = comB - comA
+            distance0 = np.linalg.norm(axis)
+            if distance0 < 1.0e-6:
+                continue
+            axis = axis / distance0
+
+            A_centered = fragA - comA
+            B_centered = fragB - comB
+            contact = self._contact_distance(
+                A_centered, A_radii, B_centered, B_radii, axis
+            )
+
+            for d in self._separation_schedule(contact, P):
+                coordinates = np.empty_like(xyz)
+                coordinates[idxA] = A_centered
+                coordinates[idxB] = B_centered + axis * d
+                conf = base if count == 0 else out_sys.copy_configuration(base)
+                conf.atoms.set_coordinates(coordinates, fractionals=False)
+                self._name_and_tag(
+                    conf, P, count + 1, orientation, d, d - contact, save_props
+                )
+                separations.append(d)
+                count += 1
+
+        return out_sys, self._stats(name, orientation, separations)
+
+    def _system_name(self, P, name_a, name_b):
+        """Resolve the output system name."""
+        requested = P["system name"]
+        if requested == "from monomers":
+            if name_b is None:
+                return f"{name_a} (scan)"
+            return f"{name_a} + {name_b}"
+        return requested
+
+    def _name_and_tag(self, conf, P, index, orientation, separation, gap, save_props):
+        """Name a generated configuration and optionally tag scan variables."""
+        if P["configuration name"] == "separation":
+            conf.name = f"{separation:.2f} Å"
+        else:
+            conf.name = str(index)
+
+        if save_props:
+            self._put_property(conf, "dimer separation", separation, "Å")
+            self._put_property(conf, "dimer gap", gap, "Å")
+            self._put_property(conf, "dimer orientation", float(orientation), None)
+
+    def _put_property(self, conf, name, value, units):
+        """Define (once) and store a float property on a configuration."""
+        properties = conf.properties
+        if not properties.exists(name):
+            properties.add(name, "float", units=units, noerror=True)
+        properties.put(name, value)
+
+    def _stats(self, name, n_seeds, separations):
+        return {
+            "system": name,
+            "n_seeds": n_seeds,
+            "n_configurations": len(separations),
+            "min_separation": min(separations) if separations else 0.0,
+            "max_separation": max(separations) if separations else 0.0,
+        }
+
+    @staticmethod
+    def _truthy(value):
+        return value is True or (isinstance(value, str) and value.lower() == "yes")
