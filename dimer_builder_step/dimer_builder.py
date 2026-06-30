@@ -3,7 +3,6 @@
 """Non-graphical part of the Dimer Builder step in a SEAMM flowchart"""
 
 import logging
-from pathlib import Path
 import importlib.resources
 import pprint  # noqa: F401
 import sys
@@ -11,7 +10,7 @@ import sys
 import dimer_builder_step
 import molsystem
 import seamm
-from seamm_util import ureg, Q_  # noqa: F401
+from seamm_util import getParser, ureg, Q_  # noqa: F401
 import seamm_util.printing as printing
 from seamm_util.printing import FormattedText as __
 
@@ -63,7 +62,7 @@ class DimerBuilder(seamm.Node):
         self,
         flowchart=None,
         title="Dimer Builder",
-        namespace="org.molssi.seamm.dimer_builder",
+        namespace="org.molssi.seamm",
         extension=None,
         logger=logger,
     ):
@@ -104,6 +103,7 @@ class DimerBuilder(seamm.Node):
         )  # yapf: disable
 
         self._metadata = dimer_builder_step.metadata
+        self.parameters = dimer_builder_step.DimerBuilderParameters()
 
     @property
     def version(self):
@@ -115,14 +115,49 @@ class DimerBuilder(seamm.Node):
         """The git version of this module."""
         return dimer_builder_step.__git_revision__
 
-    def set_id(self, node_id):
-        """Set the id for node to a given tuple"""
-        self._id = node_id
+    def create_parser(self):
+        """Setup the command-line / config file parser"""
+        parser_name = "dimer-builder-step"
+        parser = getParser()
 
-        # and set our subnodes
-        self.subflowchart.set_ids(self._id)
+        # Remember if the parser exists ... this type of step may have been
+        # found before
+        parser_exists = parser.exists(parser_name)
+
+        # Create the standard options, e.g. log-level
+        super().create_parser(name=parser_name)
+
+        if not parser_exists:
+            # Any options for the dimer builder itself can be added here.
+            pass
+
+        # Now need to walk through the steps in the subflowchart...
+        self.subflowchart.reset_visited()
+        node = self.subflowchart.get_node("1").next()
+        while node is not None:
+            node = node.create_parser()
 
         return self.next()
+
+    def set_id(self, node_id=()):
+        """Sequentially number the subnodes"""
+        self.logger.debug("Setting ids for subflowchart {}".format(self))
+        if self.visited:
+            return None
+        else:
+            self.visited = True
+            self._id = node_id
+            self.set_subids(self._id)
+            return self.next()
+
+    def set_subids(self, node_id=()):
+        """Set the ids of the nodes in the subflowchart"""
+        self.subflowchart.reset_visited()
+        node = self.subflowchart.get_node("1").next()
+        n = 1
+        while node is not None:
+            node = node.set_id((*node_id, str(n)))
+            n += 1
 
     def description_text(self, P=None):
         """Create the text description of what this step will do.

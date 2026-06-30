@@ -46,7 +46,7 @@ class TkDimerBuilder(seamm.TkNode):
         self,
         tk_flowchart=None,
         node=None,
-        namespace="org.molssi.seamm.dimer_builder.tk",
+        namespace="org.molssi.seamm.tk",
         canvas=None,
         x=None,
         y=None,
