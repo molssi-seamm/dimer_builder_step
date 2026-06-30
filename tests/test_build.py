@@ -118,7 +118,10 @@ def test_separation_schedule_geometric_range():
     assert len(d) == 8
     assert math.isclose(d.min(), contact - 0.5, abs_tol=1.0e-6)
     assert math.isclose(d.max(), 10.0, abs_tol=1.0e-6)
-    assert np.all(np.diff(d) > 0)  # sorted, strictly increasing
+    steps = np.diff(d)
+    assert np.all(steps > 0)  # sorted, strictly increasing
+    # Steps grow smoothly with separation: no oversized first step.
+    assert np.all(np.diff(steps) >= -1.0e-9)
 
 
 def test_separation_schedule_explicit():

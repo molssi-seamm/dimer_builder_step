@@ -397,13 +397,12 @@ class DimerBuilder(seamm.Node):
         elif spacing == "linear":
             distances = np.linspace(contact + inner_gap, max_sep, n)
         else:  # geometric
-            g_max = max_sep - contact
-            if g_max <= 0.1:
-                distances = np.array([contact + inner_gap, contact + 0.5])
-            else:
-                positive = np.geomspace(0.05, g_max, max(n - 1, 1))
-                gaps = np.concatenate(([inner_gap], positive))
-                distances = contact + gaps
+            # Geometric spacing of the center-to-center distance over the whole
+            # range, so steps grow smoothly with separation and cluster near
+            # contact -- with no isolated, oversized first step.
+            d_min = max(contact + inner_gap, 0.1)
+            d_max = max_sep if max_sep > d_min else d_min + 0.5
+            distances = np.geomspace(d_min, d_max, n)
 
         distances = np.unique(np.clip(distances, 0.1, None))
         return distances
