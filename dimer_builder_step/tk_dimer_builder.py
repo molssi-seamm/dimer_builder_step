@@ -178,23 +178,19 @@ class TkDimerBuilder(seamm.TkNode):
     def _upstream_has_model_chemistry(self):
         """True if a Model Chemistry step precedes this one in the flowchart.
 
-        Walks back through the non-graphical nodes via ``previous()`` and checks
-        the Python type (by name + module, so no import dependency). On any error
+        Uses the shared ``previous_nodes()`` helper and checks the Python type by
+        name + module (no import dependency on model_chemistry_step). On any error
         (e.g. the node is not yet linked into the flowchart) returns False, so the
         reminder is shown -- the safe default.
         """
         try:
-            node = self.node.previous()
-            while node is not None:
-                kind = type(node)
-                if kind.__name__ == "ModelChemistry" and kind.__module__.startswith(
-                    "model_chemistry_step"
-                ):
-                    return True
-                node = node.previous()
+            return any(
+                type(node).__name__ == "ModelChemistry"
+                and type(node).__module__.startswith("model_chemistry_step")
+                for node in self.previous_nodes()
+            )
         except Exception:
             return False
-        return False
 
     def right_click(self, event):
         """Handle a right-click: add the Edit... item."""
