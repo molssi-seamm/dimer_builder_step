@@ -11,6 +11,9 @@ dependencies:
   # SEAMM
   - seamm
 
+  # Dependencies
+  - mendeleev
+
   # Testing
   - black
   - codecov

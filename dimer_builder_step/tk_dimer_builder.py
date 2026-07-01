@@ -3,12 +3,13 @@
 """The graphical part of a Dimer Builder step"""
 
 import pprint  # noqa: F401
-import tkinter as tk  # noqa: F401
+import tkinter as tk
+import tkinter.ttk as ttk
 
-import dimer_builder_step  # noqa: F401
+from .dimer_builder_parameters import DimerBuilderParameters
 import seamm
 from seamm_util import ureg, Q_, units_class  # noqa: F401
-
+import seamm_widgets as sw
 
 
 class TkDimerBuilder(seamm.TkNode):
@@ -35,7 +36,7 @@ class TkDimerBuilder(seamm.TkNode):
         The height in pixels of the picture of the node
     self[widget] : dict
         A dictionary of tk widgets built using the information
-        contained in Dimer Builder_parameters.py
+        contained in dimer_builder_parameters.py
 
     See Also
     --------
@@ -47,7 +48,7 @@ class TkDimerBuilder(seamm.TkNode):
         self,
         tk_flowchart=None,
         node=None,
-        namespace="org.molssi.seamm.dimer_builder.tk",
+        namespace="org.molssi.seamm.tk",
         canvas=None,
         x=None,
         y=None,
@@ -97,7 +98,7 @@ class TkDimerBuilder(seamm.TkNode):
     def create_dialog(self):
         """
         Create the dialog. A set of widgets will be chosen by default
-        based on what is specified in the Dimer Builder_parameters
+        based on what is specified in the dimer_builder_parameters
         module.
 
         Parameters
@@ -113,7 +114,8 @@ class TkDimerBuilder(seamm.TkNode):
         TkDimerBuilder.reset_dialog
         """
 
-        frame = super().create_dialog(title="Dimer Builder")
+        super().create_dialog(title="Dimer Builder", widget="notebook")
+
         # make it large!
         screen_w = self.dialog.winfo_screenwidth()
         screen_h = self.dialog.winfo_screenheight()
@@ -124,12 +126,131 @@ class TkDimerBuilder(seamm.TkNode):
 
         self.dialog.geometry(f"{w}x{h}+{x}+{y}")
 
+        # Add a tab for the sub-flowchart (used by the 'energy' contact method)
+        notebook = self["notebook"]
+        flowchart_frame = ttk.Frame(notebook)
+        self["flowchart frame"] = flowchart_frame
+        notebook.add(flowchart_frame, text="Flowchart", sticky=tk.NSEW)
+
         self.tk_subflowchart = seamm.TkFlowchart(
-            master=frame,
+            master=flowchart_frame,
             flowchart=self.node.subflowchart,
-            namespace=self.namespace
+            namespace=self.namespace,
         )
         self.tk_subflowchart.draw()
+
+        # Shortcut for parameters
+        P = self.node.parameters
+
+        # A frame to hold the control parameters
+        parameters_frame = self["parameters frame"] = ttk.LabelFrame(
+            self["frame"],
+            borderwidth=4,
+            relief="sunken",
+            text="Dimer Builder Parameters",
+            labelanchor="n",
+            padding=10,
+        )
+
+        for key in DimerBuilderParameters.parameters:
+            if key not in ("results",):
+                self[key] = P[key].widget(parameters_frame)
+
+        # Comboboxes whose value changes the layout re-lay out the dialog
+        for key in (
+            "input mode",
+            "spacing",
+            "monomer A configurations",
+            "monomer B configurations",
+        ):
+            self[key].combobox.bind("<<ComboboxSelected>>", self.reset_dialog)
+            self[key].combobox.bind("<Return>", self.reset_dialog)
+            self[key].combobox.bind("<FocusOut>", self.reset_dialog)
+
+        self.reset_dialog()
+
+    def reset_dialog(self, widget=None):
+        """Layout the widgets in the dialog as needed for the current state.
+
+        Parameters
+        ----------
+        widget : Tk Widget = None
+
+        Returns
+        -------
+        None
+        """
+        # Remove any widgets previously packed
+        frame = self["frame"]
+        for slave in frame.grid_slaves():
+            slave.grid_forget()
+
+        self["parameters frame"].grid(row=0, column=0, sticky=tk.EW, pady=10)
+        frame.columnconfigure(0, weight=1)
+
+        self.reset_parameters_frame()
+
+        return 1
+
+    def reset_parameters_frame(self):
+        """Lay out the control parameters according to the current choices."""
+        mode = self["input mode"].get()
+        spacing = self["spacing"].get()
+
+        frame = self["parameters frame"]
+        for slave in frame.grid_slaves():
+            slave.grid_forget()
+
+        row = 0
+        widgets = []
+
+        def add(key):
+            nonlocal row
+            self[key].grid(row=row, column=0, columnspan=2, sticky=tk.EW)
+            widgets.append(self[key])
+            row += 1
+
+        add("input mode")
+
+        # Input sources
+        if mode == "two monomer sets":
+            sources = ("monomer A", "monomer B")
+        else:
+            sources = ("monomer A",)
+
+        for prefix in sources:
+            add(prefix)
+            add(f"{prefix} configurations")
+            if self[f"{prefix} configurations"].get() in (
+                "name is",
+                "name matches",
+                "name regexp",
+            ):
+                add(f"{prefix} configuration name")
+
+        # Orientation sampling only applies when assembling from monomers
+        if mode == "two monomer sets":
+            add("number of orientations")
+            add("random seed")
+
+        # Radial scan
+        for key in ("contact method", "innermost gap", "maximum separation", "spacing"):
+            add(key)
+        if spacing == "explicit":
+            add("separations")
+        else:
+            add("number of separations")
+
+        # Output
+        for key in (
+            "system name",
+            "configuration name",
+            "save scan variables as properties",
+        ):
+            add(key)
+
+        sw.align_labels(widgets, sticky=tk.E)
+        frame.columnconfigure(1, weight=1)
 
     def right_click(self, event):
         """

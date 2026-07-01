@@ -33,7 +33,7 @@ class DimerBuilderStep(object):
 
     my_description = {
         "description": "An interface for Dimer Builder",
-        "group": "Simulations",
+        "group": "Building",
         "name": "Dimer Builder",
     }
 

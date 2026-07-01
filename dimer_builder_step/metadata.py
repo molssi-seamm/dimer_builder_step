@@ -4,6 +4,12 @@
 
 metadata = {}
 
+# The Dimer Builder generates structures rather than computing properties, so it
+# exposes no formal results yet. (The per-configuration scan variables --
+# separation, gap, orientation -- are stored directly as properties.) An empty
+# dict is still required by the framework's results handling.
+metadata["results"] = {}
+
 """Description of the computational models for DimerBuilder.
 
 Hamiltonians, approximations, and basis set or parameterizations,
