@@ -311,6 +311,15 @@ class DimerBuilder(seamm.Node):
             f"{stats['max_separation']:.2f} Å."
         )
         printer.important(__(text, indent=4 * " "))
+
+        if stats.get("model_chemistry"):
+            text = (
+                f"The contact distances were found from the energy using the model "
+                f"chemistry '{stats['model_chemistry']}', which was evaluated "
+                f"{stats['n_energy_calls']} times."
+            )
+            printer.important(__(text, indent=4 * " "))
+
         printer.important("")
 
     # ----------------------------------------------------------------- #
@@ -552,6 +561,7 @@ class DimerBuilder(seamm.Node):
                 "xTB."
             )
 
+        self._energy_model = mc.get("level", mc.get("method", "the model chemistry"))
         step = self.flowchart.plugin_manager.get(mc["step"])
         executor = self.flowchart.executor
         seamm_options = self.global_options
@@ -738,7 +748,11 @@ class DimerBuilder(seamm.Node):
             if engine is not None:
                 engine.close()
 
-        return dimer_sys, self._stats(name, P["number of orientations"], separations)
+        stats = self._stats(name, P["number of orientations"], separations)
+        if engine is not None:
+            stats["model_chemistry"] = self._energy_model
+            stats["n_energy_calls"] = engine.n_energy_calls
+        return dimer_sys, stats
 
     def _build_from_dimers(self, system_db, P):
         """Mode B: radial profiles from prepared complexes (fixed orientation).
@@ -859,7 +873,11 @@ class DimerBuilder(seamm.Node):
             if engine is not None:
                 engine.close()
 
-        return out_sys, self._stats(name, orientation, separations)
+        stats = self._stats(name, orientation, separations)
+        if engine is not None:
+            stats["model_chemistry"] = self._energy_model
+            stats["n_energy_calls"] = engine.n_energy_calls
+        return out_sys, stats
 
     def _system_name(self, P, name_a, name_b):
         """Resolve the output system name."""
@@ -885,8 +903,8 @@ class DimerBuilder(seamm.Node):
             conf.name = f"{geometry['separation']:.2f} Å"
         elif naming == "sequential":
             conf.name = str(index)
-        else:  # orientation/distance
-            conf.name = f"{orientation}/{point}"
+        else:  # orientation,distance
+            conf.name = f"{orientation},{point}"
 
         if save_props:
             p = "#DimerBuilder#scan"

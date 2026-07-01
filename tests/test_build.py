@@ -62,7 +62,7 @@ def _P(**overrides):
         "number of separations": 8,
         "separations": "",
         "system name": "from monomers",
-        "configuration name": "orientation/distance",
+        "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
     }
     P.update(overrides)
@@ -163,9 +163,9 @@ def test_build_mode_a_orientation_distance_names(db_two_waters):
     system, stats = node._build(db, P, np.random.default_rng(12))
 
     names = [c.name for c in system.configurations]
-    assert names[:4] == ["1/1", "1/2", "1/3", "1/4"]
-    assert names[4:8] == ["2/1", "2/2", "2/3", "2/4"]
-    assert names[-1] == "3/4"
+    assert names[:4] == ["1,1", "1,2", "1,3", "1,4"]
+    assert names[4:8] == ["2,1", "2,2", "2,3", "2,4"]
+    assert names[-1] == "3,4"
 
 
 def test_build_mode_a_separation_range(db_two_waters):
