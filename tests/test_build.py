@@ -212,6 +212,48 @@ def test_build_mode_a_monomer_a_is_fixed(db_two_waters):
             assert np.allclose(A, reference, atol=1.0e-9)
 
 
+class _HarmonicEngine:
+    """A fake engine whose energy is harmonic in the two fragments' separation.
+
+    Duck-types the bits of seamm_mdi.MDIEngine that _energy_anchor uses, so the
+    energy-contact machinery can be tested without MDI or a real code.
+    """
+
+    def __init__(self, nA, r0):
+        self.nA = nA
+        self.r0 = r0
+        self._xyz = None
+
+    def set_coordinates(self, xyz, units="bohr"):
+        self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+    def energy(self, units="hartree"):
+        a = self._xyz[: self.nA].mean(axis=0)
+        b = self._xyz[self.nA :].mean(axis=0)
+        r = np.linalg.norm(b - a)
+        return float((r - self.r0) ** 2)
+
+
+def test_minimize_on_grid_parabola():
+    node = dimer_builder_step.DimerBuilder()
+    f = lambda d: (d - 2.7) ** 2 + 1.0  # noqa: E731
+    assert node._minimize_on_grid(f, 1.0, 5.0, 9) == pytest.approx(2.7, abs=0.05)
+
+
+def test_energy_anchor_finds_minimum():
+    node = dimer_builder_step.DimerBuilder()
+    engine = _HarmonicEngine(nA=3, r0=3.2)
+
+    A = np.zeros((3, 3))
+    B = np.zeros((3, 3))
+
+    def assemble(d):
+        return np.vstack([A, B + np.array([0.0, 0.0, d])])
+
+    anchor = node._energy_anchor(engine, assemble, seed=2.5, P=_P())
+    assert anchor == pytest.approx(3.2, abs=0.05)
+
+
 def test_direction_angles_known():
     node = dimer_builder_step.DimerBuilder()
     assert node._direction_angles([0.0, 0.0, 1.0]) == (0.0, 0.0)

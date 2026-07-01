@@ -525,6 +525,91 @@ class DimerBuilder(seamm.Node):
 
         return fixed_idx, movable_idx
 
+    # ----------------------------------------------------------------- #
+    # Energy-based contact ('contact method' = 'energy'), via seamm_mdi
+    # ----------------------------------------------------------------- #
+
+    def _open_energy_engine(self, elements, charge, multiplicity):
+        """Start an MDI engine for the dimer from the upstream model chemistry.
+
+        Returns a started ``seamm_mdi.MDIEngine`` or raises with guidance if no
+        MDI-capable model chemistry is available.
+        """
+        from seamm_mdi import MDIEngine
+
+        try:
+            mc = self.get_variable("_model_chemistry")
+        except Exception:
+            raise ValueError(
+                "The 'energy' contact method needs a model chemistry. Add a "
+                "Model Chemistry step before the Dimer Builder step."
+            )
+        options = mc.get("options", {}) if isinstance(mc, dict) else {}
+        if not options.get("mdi_capable", False):
+            raise ValueError(
+                f"The model chemistry '{mc.get('level', mc)}' is not MDI-capable; "
+                "the 'energy' contact method needs an MDI engine such as MOPAC or "
+                "xTB."
+            )
+
+        step = self.flowchart.plugin_manager.get(mc["step"])
+        executor = self.flowchart.executor
+        seamm_options = self.global_options
+        method = mc["method"]
+        n_atoms = len(elements)
+
+        def build_argv(hostname, port):
+            return step.get_mdi_engine_command(
+                executor,
+                seamm_options,
+                method=method,
+                port=port,
+                hostname=hostname,
+                charge=charge,
+                multiplicity=multiplicity,
+                n_atoms=n_atoms,
+            )
+
+        engine = MDIEngine(build_argv, elements=elements, name="DimerBuilder")
+        engine.start()
+        return engine
+
+    def _energy_anchor(self, engine, assemble, seed, P):
+        """Locate the energy minimum along the approach axis (the scan anchor).
+
+        ``assemble(d)`` returns the full dimer coordinates (Å) with the movable
+        group placed at center-to-center distance ``d``. ``seed`` is the van der
+        Waals contact estimate used to bracket the search.
+        """
+        max_sep = P["maximum separation"].to("Å").magnitude
+        lo = max(seed - 0.5, 0.5)
+        hi = min(seed + 5.0, max_sep)
+        if hi <= lo:
+            hi = lo + 1.0
+
+        def energy_at(d):
+            engine.set_coordinates(assemble(d), units="Å")
+            return engine.energy(units="hartree")
+
+        return self._minimize_on_grid(energy_at, lo, hi, 9)
+
+    @staticmethod
+    def _minimize_on_grid(func, lo, hi, n):
+        """Minimize a 1-D function on a uniform grid, refining parabolically.
+
+        Coarse but robust and derivative-free -- enough to anchor the scan.
+        """
+        ds = np.linspace(lo, hi, n)
+        es = np.array([func(float(d)) for d in ds])
+        k = int(np.argmin(es))
+        if 0 < k < n - 1:
+            e0, e1, e2 = es[k - 1], es[k], es[k + 1]
+            denom = e0 - 2.0 * e1 + e2
+            if denom > 0.0:  # concave up -> a real interior minimum
+                h = ds[1] - ds[0]
+                return float(ds[k] + 0.5 * h * (e0 - e2) / denom)
+        return float(ds[k])
+
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
         if P["input mode"] == "two monomer sets":
@@ -566,59 +651,80 @@ class DimerBuilder(seamm.Node):
         A_radii = vdw_radii(A0.atoms.symbols)
         B_radii = vdw_radii(B0.atoms.symbols)
 
+        engine = None
+        if P["contact method"] == "energy":
+            elements = list(A0.atoms.atomic_numbers) + list(B0.atoms.atomic_numbers)
+            charge = (A0.charge or 0) + (B0.charge or 0)
+            engine = self._open_energy_engine(elements, charge, 1)
+
         save_props = self._truthy(P["save scan variables as properties"])
         count = 0
         separations = []
-        for orientation in range(1, P["number of orientations"] + 1):
-            Ac = A_pool[int(rng.integers(len(A_pool)))]
-            Bc = B_pool[int(rng.integers(len(B_pool)))]
+        try:
+            for orientation in range(1, P["number of orientations"] + 1):
+                Ac = A_pool[int(rng.integers(len(A_pool)))]
+                Bc = B_pool[int(rng.integers(len(B_pool)))]
 
-            # Monomer A is held fixed: centered at the COM on its principal axes,
-            # so it is identical across the whole scan (and across orientations,
-            # for a single conformer) -- a clean visual anchor.
-            xyzA = self._orient_to_principal_axes(
-                np.array(Ac.atoms.get_coordinates(fractionals=False, as_array=True)),
-                Ac.atoms.atomic_masses,
-            )
-
-            # Monomer B carries the randomness: its principal-axis frame is
-            # rotated by R_B, and it approaches from a random direction.
-            R_B = random_rotation_matrix(rng)
-            xyzB = (
-                self._orient_to_principal_axes(
+                # Monomer A is held fixed: centered at the COM on its principal
+                # axes, so it is identical across the whole scan (and across
+                # orientations, for a single conformer) -- a clean visual anchor.
+                xyzA = self._orient_to_principal_axes(
                     np.array(
-                        Bc.atoms.get_coordinates(fractionals=False, as_array=True)
+                        Ac.atoms.get_coordinates(fractionals=False, as_array=True)
                     ),
-                    Bc.atoms.atomic_masses,
+                    Ac.atoms.atomic_masses,
                 )
-                @ R_B.T
-            )
-            axis = rng.standard_normal(3)
-            axis = axis / np.linalg.norm(axis)
 
-            theta, phi = self._direction_angles(axis)
-            alpha, beta, gamma = self._euler_zyz(R_B)
-
-            contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
-            for point, d in enumerate(self._separation_schedule(contact, P), start=1):
-                coordinates = np.vstack([xyzA, xyzB + axis * d])
-                conf = base if count == 0 else dimer_sys.copy_configuration(base)
-                conf.atoms.set_coordinates(coordinates, fractionals=False)
-                geometry = {
-                    "separation": d,
-                    "gap": d - contact,
-                    "theta": theta,
-                    "phi": phi,
-                    "alpha": alpha,
-                    "beta": beta,
-                    "gamma": gamma,
-                }
-                self._name_and_tag(
-                    conf, P, count + 1, orientation, point, geometry, save_props
+                # Monomer B carries the randomness: its principal-axis frame is
+                # rotated by R_B, and it approaches from a random direction.
+                R_B = random_rotation_matrix(rng)
+                xyzB = (
+                    self._orient_to_principal_axes(
+                        np.array(
+                            Bc.atoms.get_coordinates(fractionals=False, as_array=True)
+                        ),
+                        Bc.atoms.atomic_masses,
+                    )
+                    @ R_B.T
                 )
-                self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
-                separations.append(d)
-                count += 1
+                axis = rng.standard_normal(3)
+                axis = axis / np.linalg.norm(axis)
+
+                theta, phi = self._direction_angles(axis)
+                alpha, beta, gamma = self._euler_zyz(R_B)
+
+                contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
+                if engine is not None:
+
+                    def assemble(d, xyzA=xyzA, xyzB=xyzB, axis=axis):
+                        return np.vstack([xyzA, xyzB + axis * d])
+
+                    contact = self._energy_anchor(engine, assemble, contact, P)
+
+                for point, d in enumerate(
+                    self._separation_schedule(contact, P), start=1
+                ):
+                    coordinates = np.vstack([xyzA, xyzB + axis * d])
+                    conf = base if count == 0 else dimer_sys.copy_configuration(base)
+                    conf.atoms.set_coordinates(coordinates, fractionals=False)
+                    geometry = {
+                        "separation": d,
+                        "gap": d - contact,
+                        "theta": theta,
+                        "phi": phi,
+                        "alpha": alpha,
+                        "beta": beta,
+                        "gamma": gamma,
+                    }
+                    self._name_and_tag(
+                        conf, P, count + 1, orientation, point, geometry, save_props
+                    )
+                    self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
+                    separations.append(d)
+                    count += 1
+        finally:
+            if engine is not None:
+                engine.close()
 
         return dimer_sys, self._stats(name, P["number of orientations"], separations)
 
@@ -657,63 +763,89 @@ class DimerBuilder(seamm.Node):
         fixed_ids = [atom_ids[i] for i in fixed_idx]
         movable_ids = [atom_ids[i] for i in movable_idx]
 
+        engine = None
+        if P["contact method"] == "energy":
+            engine = self._open_energy_engine(
+                list(d0.atoms.atomic_numbers), d0.charge or 0, 1
+            )
+
         save_props = self._truthy(P["save scan variables as properties"])
         count = 0
         separations = []
         orientation = 0
-        for orientation, structure in enumerate(pool, start=1):
-            if structure.n_atoms != d0.n_atoms:
-                self.logger.warning(
-                    f"Skipping '{structure.name}': it has a different number of "
-                    "atoms than the first structure (mixed compositions are not "
-                    "supported)."
+        try:
+            for orientation, structure in enumerate(pool, start=1):
+                if structure.n_atoms != d0.n_atoms:
+                    self.logger.warning(
+                        f"Skipping '{structure.name}': it has a different number of "
+                        "atoms than the first structure (mixed compositions are not "
+                        "supported)."
+                    )
+                    continue
+                xyz = np.array(
+                    structure.atoms.get_coordinates(fractionals=False, as_array=True),
+                    dtype=float,
                 )
-                continue
-            xyz = np.array(
-                structure.atoms.get_coordinates(fractionals=False, as_array=True),
-                dtype=float,
-            )
-            fixed_xyz = xyz[fixed_idx]
-            movable_xyz = xyz[movable_idx]
-            fixed_center = fixed_xyz.mean(axis=0)
-            movable_center = movable_xyz.mean(axis=0)
-            axis = movable_center - fixed_center
-            distance0 = np.linalg.norm(axis)
-            if distance0 < 1.0e-6:
-                continue
-            axis = axis / distance0
+                fixed_xyz = xyz[fixed_idx]
+                movable_xyz = xyz[movable_idx]
+                fixed_center = fixed_xyz.mean(axis=0)
+                movable_center = movable_xyz.mean(axis=0)
+                axis = movable_center - fixed_center
+                distance0 = np.linalg.norm(axis)
+                if distance0 < 1.0e-6:
+                    continue
+                axis = axis / distance0
 
-            fixed_centered = fixed_xyz - fixed_center
-            movable_centered = movable_xyz - movable_center
-            contact = self._contact_distance(
-                fixed_centered, fixed_radii, movable_centered, movable_radii, axis
-            )
-
-            theta, phi = self._direction_angles(axis)
-            _, movable_axes = self._principal_axes(movable_xyz, movable_masses)
-            alpha, beta, gamma = self._euler_zyz(movable_axes)
-
-            for point, d in enumerate(self._separation_schedule(contact, P), start=1):
-                coordinates = np.empty_like(xyz)
-                coordinates[fixed_idx] = fixed_centered
-                coordinates[movable_idx] = movable_centered + axis * d
-                conf = base if count == 0 else out_sys.copy_configuration(base)
-                conf.atoms.set_coordinates(coordinates, fractionals=False)
-                geometry = {
-                    "separation": d,
-                    "gap": d - contact,
-                    "theta": theta,
-                    "phi": phi,
-                    "alpha": alpha,
-                    "beta": beta,
-                    "gamma": gamma,
-                }
-                self._name_and_tag(
-                    conf, P, count + 1, orientation, point, geometry, save_props
+                fixed_centered = fixed_xyz - fixed_center
+                movable_centered = movable_xyz - movable_center
+                contact = self._contact_distance(
+                    fixed_centered, fixed_radii, movable_centered, movable_radii, axis
                 )
-                self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
-                separations.append(d)
-                count += 1
+
+                theta, phi = self._direction_angles(axis)
+                _, movable_axes = self._principal_axes(movable_xyz, movable_masses)
+                alpha, beta, gamma = self._euler_zyz(movable_axes)
+
+                def assemble(
+                    d,
+                    fixed_centered=fixed_centered,
+                    movable_centered=movable_centered,
+                    axis=axis,
+                    fixed_idx=fixed_idx,
+                    movable_idx=movable_idx,
+                    template=xyz,
+                ):
+                    c = np.empty_like(template)
+                    c[fixed_idx] = fixed_centered
+                    c[movable_idx] = movable_centered + axis * d
+                    return c
+
+                if engine is not None:
+                    contact = self._energy_anchor(engine, assemble, contact, P)
+
+                for point, d in enumerate(
+                    self._separation_schedule(contact, P), start=1
+                ):
+                    conf = base if count == 0 else out_sys.copy_configuration(base)
+                    conf.atoms.set_coordinates(assemble(d), fractionals=False)
+                    geometry = {
+                        "separation": d,
+                        "gap": d - contact,
+                        "theta": theta,
+                        "phi": phi,
+                        "alpha": alpha,
+                        "beta": beta,
+                        "gamma": gamma,
+                    }
+                    self._name_and_tag(
+                        conf, P, count + 1, orientation, point, geometry, save_props
+                    )
+                    self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
+                    separations.append(d)
+                    count += 1
+        finally:
+            if engine is not None:
+                engine.close()
 
         return out_sys, self._stats(name, orientation, separations)
 
