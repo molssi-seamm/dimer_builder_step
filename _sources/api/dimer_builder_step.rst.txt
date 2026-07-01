@@ -1,0 +1,53 @@
+dimer\_builder\_step package
+============================
+
+Submodules
+----------
+
+dimer\_builder\_step.dimer\_builder module
+------------------------------------------
+
+.. automodule:: dimer_builder_step.dimer_builder
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+dimer\_builder\_step.dimer\_builder\_parameters module
+------------------------------------------------------
+
+.. automodule:: dimer_builder_step.dimer_builder_parameters
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+dimer\_builder\_step.dimer\_builder\_step module
+------------------------------------------------
+
+.. automodule:: dimer_builder_step.dimer_builder_step
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+dimer\_builder\_step.metadata module
+------------------------------------
+
+.. automodule:: dimer_builder_step.metadata
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+dimer\_builder\_step.tk\_dimer\_builder module
+----------------------------------------------
+
+.. automodule:: dimer_builder_step.tk_dimer_builder
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Module contents
+---------------
+
+.. automodule:: dimer_builder_step
+   :members:
+   :show-inheritance:
+   :undoc-members:
