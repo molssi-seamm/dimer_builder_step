@@ -153,7 +153,7 @@ class TkDimerBuilder(seamm.TkNode):
             add("random seed")
 
         add("contact method")
-        if energy:
+        if energy and not self._upstream_has_model_chemistry():
             self["energy note"].grid(
                 row=row, column=0, columnspan=2, sticky=tk.W, pady=(0, 6)
             )
@@ -174,6 +174,27 @@ class TkDimerBuilder(seamm.TkNode):
 
         sw.align_labels(widgets, sticky=tk.E)
         frame.columnconfigure(1, weight=1)
+
+    def _upstream_has_model_chemistry(self):
+        """True if a Model Chemistry step precedes this one in the flowchart.
+
+        Walks back through the non-graphical nodes via ``previous()`` and checks
+        the Python type (by name + module, so no import dependency). On any error
+        (e.g. the node is not yet linked into the flowchart) returns False, so the
+        reminder is shown -- the safe default.
+        """
+        try:
+            node = self.node.previous()
+            while node is not None:
+                kind = type(node)
+                if kind.__name__ == "ModelChemistry" and kind.__module__.startswith(
+                    "model_chemistry_step"
+                ):
+                    return True
+                node = node.previous()
+        except Exception:
+            return False
+        return False
 
     def right_click(self, event):
         """Handle a right-click: add the Edit... item."""
