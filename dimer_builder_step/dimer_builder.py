@@ -581,9 +581,12 @@ class DimerBuilder(seamm.Node):
         group placed at center-to-center distance ``d``. ``seed`` is the van der
         Waals contact estimate used to bracket the search.
         """
+        # The energy minimum for a bound orientation sits at or just beyond the
+        # vdW contact, so search a modest window around the seed at a fine step;
+        # a minimum pinned at the outer edge means "no well in range".
         max_sep = P["maximum separation"].to("Å").magnitude
         lo = max(seed - 0.5, 0.5)
-        hi = min(seed + 5.0, max_sep)
+        hi = min(seed + 3.0, max_sep)
         if hi <= lo:
             hi = lo + 1.0
 
@@ -591,24 +594,33 @@ class DimerBuilder(seamm.Node):
             engine.set_coordinates(assemble(d), units="Å")
             return engine.energy(units="hartree")
 
-        return self._minimize_on_grid(energy_at, lo, hi, 9)
+        d_min, k, n = self._minimize_on_grid(energy_at, lo, hi, 11)
+        # If the minimum sits at the outer edge the energy is still falling as the
+        # molecules separate -- this orientation has no binding well in range, so
+        # anchor the scan at the geometric (vdW) contact instead.
+        if k >= n - 1:
+            return seed
+        return d_min
 
     @staticmethod
     def _minimize_on_grid(func, lo, hi, n):
         """Minimize a 1-D function on a uniform grid, refining parabolically.
 
         Coarse but robust and derivative-free -- enough to anchor the scan.
+        Returns (d_min, k, n) where k is the index of the lowest grid point (so
+        the caller can tell an interior minimum from one pinned at an edge).
         """
         ds = np.linspace(lo, hi, n)
         es = np.array([func(float(d)) for d in ds])
         k = int(np.argmin(es))
+        d_min = float(ds[k])
         if 0 < k < n - 1:
             e0, e1, e2 = es[k - 1], es[k], es[k + 1]
             denom = e0 - 2.0 * e1 + e2
             if denom > 0.0:  # concave up -> a real interior minimum
                 h = ds[1] - ds[0]
-                return float(ds[k] + 0.5 * h * (e0 - e2) / denom)
-        return float(ds[k])
+                d_min = float(ds[k] + 0.5 * h * (e0 - e2) / denom)
+        return d_min, k, n
 
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""

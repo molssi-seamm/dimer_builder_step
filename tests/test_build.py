@@ -237,21 +237,41 @@ class _HarmonicEngine:
 def test_minimize_on_grid_parabola():
     node = dimer_builder_step.DimerBuilder()
     f = lambda d: (d - 2.7) ** 2 + 1.0  # noqa: E731
-    assert node._minimize_on_grid(f, 1.0, 5.0, 9) == pytest.approx(2.7, abs=0.05)
+    d_min, k, n = node._minimize_on_grid(f, 1.0, 5.0, 9)
+    assert d_min == pytest.approx(2.7, abs=0.05)
+    assert 0 < k < n - 1  # interior minimum
+
+
+def _assemble_along_z(A, B):
+    def assemble(d):
+        return np.vstack([A, B + np.array([0.0, 0.0, d])])
+
+    return assemble
 
 
 def test_energy_anchor_finds_minimum():
     node = dimer_builder_step.DimerBuilder()
     engine = _HarmonicEngine(nA=3, r0=3.2)
-
-    A = np.zeros((3, 3))
-    B = np.zeros((3, 3))
-
-    def assemble(d):
-        return np.vstack([A, B + np.array([0.0, 0.0, d])])
-
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
     anchor = node._energy_anchor(engine, assemble, seed=2.5, P=_P())
     assert anchor == pytest.approx(3.2, abs=0.05)
+
+
+def test_energy_anchor_falls_back_when_no_well():
+    # Monotonically decreasing energy (no binding well) -> anchor at the seed.
+    class _Repulsive:
+        def set_coordinates(self, xyz, units="bohr"):
+            self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+        def energy(self, units="hartree"):
+            a = self._xyz[:3].mean(axis=0)
+            b = self._xyz[3:].mean(axis=0)
+            return -float(np.linalg.norm(b - a))  # keeps falling as they separate
+
+    node = dimer_builder_step.DimerBuilder()
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    anchor = node._energy_anchor(_Repulsive(), assemble, seed=2.9, P=_P())
+    assert anchor == pytest.approx(2.9)
 
 
 def test_direction_angles_known():
