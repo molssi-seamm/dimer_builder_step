@@ -62,7 +62,7 @@ def _P(**overrides):
         "number of separations": 8,
         "separations": "",
         "system name": "from monomers",
-        "configuration name": "orientation/distance",
+        "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
     }
     P.update(overrides)
@@ -163,9 +163,9 @@ def test_build_mode_a_orientation_distance_names(db_two_waters):
     system, stats = node._build(db, P, np.random.default_rng(12))
 
     names = [c.name for c in system.configurations]
-    assert names[:4] == ["1/1", "1/2", "1/3", "1/4"]
-    assert names[4:8] == ["2/1", "2/2", "2/3", "2/4"]
-    assert names[-1] == "3/4"
+    assert names[:4] == ["1,1", "1,2", "1,3", "1,4"]
+    assert names[4:8] == ["2,1", "2,2", "2,3", "2,4"]
+    assert names[-1] == "3,4"
 
 
 def test_build_mode_a_separation_range(db_two_waters):
@@ -210,6 +210,68 @@ def test_build_mode_a_monomer_a_is_fixed(db_two_waters):
             assert np.allclose(com, [0.0, 0.0, 0.0], atol=1.0e-9)
         else:
             assert np.allclose(A, reference, atol=1.0e-9)
+
+
+class _HarmonicEngine:
+    """A fake engine whose energy is harmonic in the two fragments' separation.
+
+    Duck-types the bits of seamm_mdi.MDIEngine that _energy_anchor uses, so the
+    energy-contact machinery can be tested without MDI or a real code.
+    """
+
+    def __init__(self, nA, r0):
+        self.nA = nA
+        self.r0 = r0
+        self._xyz = None
+
+    def set_coordinates(self, xyz, units="bohr"):
+        self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+    def energy(self, units="hartree"):
+        a = self._xyz[: self.nA].mean(axis=0)
+        b = self._xyz[self.nA :].mean(axis=0)
+        r = np.linalg.norm(b - a)
+        return float((r - self.r0) ** 2)
+
+
+def test_minimize_on_grid_parabola():
+    node = dimer_builder_step.DimerBuilder()
+    f = lambda d: (d - 2.7) ** 2 + 1.0  # noqa: E731
+    d_min, k, n = node._minimize_on_grid(f, 1.0, 5.0, 9)
+    assert d_min == pytest.approx(2.7, abs=0.05)
+    assert 0 < k < n - 1  # interior minimum
+
+
+def _assemble_along_z(A, B):
+    def assemble(d):
+        return np.vstack([A, B + np.array([0.0, 0.0, d])])
+
+    return assemble
+
+
+def test_energy_anchor_finds_minimum():
+    node = dimer_builder_step.DimerBuilder()
+    engine = _HarmonicEngine(nA=3, r0=3.2)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    anchor = node._energy_anchor(engine, assemble, seed=2.5, P=_P())
+    assert anchor == pytest.approx(3.2, abs=0.05)
+
+
+def test_energy_anchor_falls_back_when_no_well():
+    # Monotonically decreasing energy (no binding well) -> anchor at the seed.
+    class _Repulsive:
+        def set_coordinates(self, xyz, units="bohr"):
+            self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+        def energy(self, units="hartree"):
+            a = self._xyz[:3].mean(axis=0)
+            b = self._xyz[3:].mean(axis=0)
+            return -float(np.linalg.norm(b - a))  # keeps falling as they separate
+
+    node = dimer_builder_step.DimerBuilder()
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    anchor = node._energy_anchor(_Repulsive(), assemble, seed=2.9, P=_P())
+    assert anchor == pytest.approx(2.9)
 
 
 def test_direction_angles_known():

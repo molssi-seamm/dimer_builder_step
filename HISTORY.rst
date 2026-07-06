@@ -2,6 +2,19 @@
 History
 =======
 
+2026.7.6 -- Energy-based contact and GUI refinements
+    * Added an ``energy`` contact method: with a Model Chemistry step before the
+      Dimer Builder step, the contact distance is found from the energy minimum
+      along each approach direction (falling back to the van der Waals estimate
+      for orientations with no binding well). It uses the new ``seamm_mdi`` MDI
+      driver to evaluate the energy, and reports which model chemistry was used
+      and how many times it was called.
+    * Configuration names now use a comma (e.g. ``2,1``) rather than a slash,
+      which is reserved for separating system and configuration names.
+    * The dialog no longer shows the unused Flowchart tab, and reminds you to add
+      a Model Chemistry step when the energy contact method is chosen and none
+      precedes this step.
+
 2026.6.30 -- Initial release
     * Generates sets of dimer (molecule-pair) configurations across a range of
       separations and relative orientations, for building interaction-energy data
