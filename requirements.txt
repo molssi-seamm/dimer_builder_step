@@ -1,6 +1,7 @@
 seamm
 seamm-util
 seamm-widgets
+seamm_mdi
 molsystem
 mendeleev
 numpy
