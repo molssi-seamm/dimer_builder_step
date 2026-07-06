@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.6.30 documentation</title>
+    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../../_static/documentation_options.js?v=4ce6c646"></script>
+    <script src="../../_static/documentation_options.js?v=29693f0c"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.30" />
+  <meta name="docsearch:version" content="2026.7.6" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -749,18 +749,19 @@
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;configuration name&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;orientation/distance&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;orientation,distance&quot;</span><span class="p">,</span>
             <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
             <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;orientation/distance&quot;</span><span class="p">,</span> <span class="s2">&quot;separation&quot;</span><span class="p">,</span> <span class="s2">&quot;sequential&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;orientation,distance&quot;</span><span class="p">,</span> <span class="s2">&quot;separation&quot;</span><span class="p">,</span> <span class="s2">&quot;sequential&quot;</span><span class="p">),</span>
             <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
             <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Name the configurations:&quot;</span><span class="p">,</span>
             <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How to name each generated configuration. &#39;orientation/distance&#39; &quot;</span>
-                <span class="s2">&quot;labels them by orientation and point index (1/1, 1/2, ..., 2/1, &quot;</span>
+                <span class="s2">&quot;How to name each generated configuration. &#39;orientation,distance&#39; &quot;</span>
+                <span class="s2">&quot;labels them by orientation and point index (1,1  1,2  ...  2,1  &quot;</span>
                 <span class="s2">&quot;...) so the points of one scan group together; &#39;separation&#39; &quot;</span>
                 <span class="s2">&quot;labels them by their separation; &#39;sequential&#39; numbers them 1, 2, &quot;</span>
-                <span class="s2">&quot;... across all configurations.&quot;</span>
+                <span class="s2">&quot;... across all configurations. A comma (not &#39;/&#39;) is used since &quot;</span>
+                <span class="s2">&quot;&#39;/&#39; separates system and configuration names elsewhere.&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;save scan variables as properties&quot;</span><span class="p">:</span> <span class="p">{</span>

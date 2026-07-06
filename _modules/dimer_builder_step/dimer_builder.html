@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.6.30 documentation</title>
+    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.6 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../../_static/documentation_options.js?v=4ce6c646"></script>
+    <script src="../../_static/documentation_options.js?v=29693f0c"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.30" />
+  <meta name="docsearch:version" content="2026.7.6" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -826,6 +826,15 @@
             <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;max_separation&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> Å.&quot;</span>
         <span class="p">)</span>
         <span class="n">printer</span><span class="o">.</span><span class="n">important</span><span class="p">(</span><span class="n">__</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span> <span class="o">*</span> <span class="s2">&quot; &quot;</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">):</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The contact distances were found from the energy using the model &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;chemistry &#39;</span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;model_chemistry&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39;, which was evaluated &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;n_energy_calls&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> times.&quot;</span>
+            <span class="p">)</span>
+            <span class="n">printer</span><span class="o">.</span><span class="n">important</span><span class="p">(</span><span class="n">__</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span> <span class="o">*</span> <span class="s2">&quot; &quot;</span><span class="p">))</span>
+
         <span class="n">printer</span><span class="o">.</span><span class="n">important</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span></div>
 
 
@@ -1041,6 +1050,104 @@
 
         <span class="k">return</span> <span class="n">fixed_idx</span><span class="p">,</span> <span class="n">movable_idx</span>
 
+    <span class="c1"># ----------------------------------------------------------------- #</span>
+    <span class="c1"># Energy-based contact (&#39;contact method&#39; = &#39;energy&#39;), via seamm_mdi</span>
+    <span class="c1"># ----------------------------------------------------------------- #</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_open_energy_engine</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">elements</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span> <span class="n">multiplicity</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Start an MDI engine for the dimer from the upstream model chemistry.</span>
+
+<span class="sd">        Returns a started ``seamm_mdi.MDIEngine`` or raises with guidance if no</span>
+<span class="sd">        MDI-capable model chemistry is available.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">seamm_mdi</span><span class="w"> </span><span class="kn">import</span> <span class="n">MDIEngine</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">mc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s2">&quot;_model_chemistry&quot;</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;The &#39;energy&#39; contact method needs a model chemistry. Add a &quot;</span>
+                <span class="s2">&quot;Model Chemistry step before the Dimer Builder step.&quot;</span>
+            <span class="p">)</span>
+        <span class="n">options</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;options&quot;</span><span class="p">,</span> <span class="p">{})</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">mc</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">options</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;mdi_capable&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;The model chemistry &#39;</span><span class="si">{</span><span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;level&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">mc</span><span class="p">)</span><span class="si">}</span><span class="s2">&#39; is not MDI-capable; &quot;</span>
+                <span class="s2">&quot;the &#39;energy&#39; contact method needs an MDI engine such as MOPAC or &quot;</span>
+                <span class="s2">&quot;xTB.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_energy_model</span> <span class="o">=</span> <span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;level&quot;</span><span class="p">,</span> <span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;method&quot;</span><span class="p">,</span> <span class="s2">&quot;the model chemistry&quot;</span><span class="p">))</span>
+        <span class="n">step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flowchart</span><span class="o">.</span><span class="n">plugin_manager</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">mc</span><span class="p">[</span><span class="s2">&quot;step&quot;</span><span class="p">])</span>
+        <span class="n">executor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flowchart</span><span class="o">.</span><span class="n">executor</span>
+        <span class="n">seamm_options</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_options</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="n">mc</span><span class="p">[</span><span class="s2">&quot;method&quot;</span><span class="p">]</span>
+        <span class="n">n_atoms</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">elements</span><span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">build_argv</span><span class="p">(</span><span class="n">hostname</span><span class="p">,</span> <span class="n">port</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">step</span><span class="o">.</span><span class="n">get_mdi_engine_command</span><span class="p">(</span>
+                <span class="n">executor</span><span class="p">,</span>
+                <span class="n">seamm_options</span><span class="p">,</span>
+                <span class="n">method</span><span class="o">=</span><span class="n">method</span><span class="p">,</span>
+                <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+                <span class="n">hostname</span><span class="o">=</span><span class="n">hostname</span><span class="p">,</span>
+                <span class="n">charge</span><span class="o">=</span><span class="n">charge</span><span class="p">,</span>
+                <span class="n">multiplicity</span><span class="o">=</span><span class="n">multiplicity</span><span class="p">,</span>
+                <span class="n">n_atoms</span><span class="o">=</span><span class="n">n_atoms</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">engine</span> <span class="o">=</span> <span class="n">MDIEngine</span><span class="p">(</span><span class="n">build_argv</span><span class="p">,</span> <span class="n">elements</span><span class="o">=</span><span class="n">elements</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;DimerBuilder&quot;</span><span class="p">)</span>
+        <span class="n">engine</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">engine</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_energy_anchor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">engine</span><span class="p">,</span> <span class="n">assemble</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Locate the energy minimum along the approach axis (the scan anchor).</span>
+
+<span class="sd">        ``assemble(d)`` returns the full dimer coordinates (Å) with the movable</span>
+<span class="sd">        group placed at center-to-center distance ``d``. ``seed`` is the van der</span>
+<span class="sd">        Waals contact estimate used to bracket the search.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># The energy minimum for a bound orientation sits at or just beyond the</span>
+        <span class="c1"># vdW contact, so search a modest window around the seed at a fine step;</span>
+        <span class="c1"># a minimum pinned at the outer edge means &quot;no well in range&quot;.</span>
+        <span class="n">max_sep</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;maximum separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="n">lo</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">seed</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">)</span>
+        <span class="n">hi</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">seed</span> <span class="o">+</span> <span class="mf">3.0</span><span class="p">,</span> <span class="n">max_sep</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">hi</span> <span class="o">&lt;=</span> <span class="n">lo</span><span class="p">:</span>
+            <span class="n">hi</span> <span class="o">=</span> <span class="n">lo</span> <span class="o">+</span> <span class="mf">1.0</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">energy_at</span><span class="p">(</span><span class="n">d</span><span class="p">):</span>
+            <span class="n">engine</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">assemble</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">units</span><span class="o">=</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">engine</span><span class="o">.</span><span class="n">energy</span><span class="p">(</span><span class="n">units</span><span class="o">=</span><span class="s2">&quot;hartree&quot;</span><span class="p">)</span>
+
+        <span class="n">d_min</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">n</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_minimize_on_grid</span><span class="p">(</span><span class="n">energy_at</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="mi">11</span><span class="p">)</span>
+        <span class="c1"># If the minimum sits at the outer edge the energy is still falling as the</span>
+        <span class="c1"># molecules separate -- this orientation has no binding well in range, so</span>
+        <span class="c1"># anchor the scan at the geometric (vdW) contact instead.</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;=</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">seed</span>
+        <span class="k">return</span> <span class="n">d_min</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_minimize_on_grid</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Minimize a 1-D function on a uniform grid, refining parabolically.</span>
+
+<span class="sd">        Coarse but robust and derivative-free -- enough to anchor the scan.</span>
+<span class="sd">        Returns (d_min, k, n) where k is the index of the lowest grid point (so</span>
+<span class="sd">        the caller can tell an interior minimum from one pinned at an edge).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
+        <span class="n">es</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">func</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="p">))</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ds</span><span class="p">])</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(</span><span class="n">es</span><span class="p">))</span>
+        <span class="n">d_min</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ds</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="k">if</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="n">n</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">e0</span><span class="p">,</span> <span class="n">e1</span><span class="p">,</span> <span class="n">e2</span> <span class="o">=</span> <span class="n">es</span><span class="p">[</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">es</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">es</span><span class="p">[</span><span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">denom</span> <span class="o">=</span> <span class="n">e0</span> <span class="o">-</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="n">e1</span> <span class="o">+</span> <span class="n">e2</span>
+            <span class="k">if</span> <span class="n">denom</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>  <span class="c1"># concave up -&gt; a real interior minimum</span>
+                <span class="n">h</span> <span class="o">=</span> <span class="n">ds</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">ds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">d_min</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">ds</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">h</span> <span class="o">*</span> <span class="p">(</span><span class="n">e0</span> <span class="o">-</span> <span class="n">e2</span><span class="p">)</span> <span class="o">/</span> <span class="n">denom</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">d_min</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">n</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_build</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system_db</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the dimer configurations. Returns (system, stats).&quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;input mode&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;two monomer sets&quot;</span><span class="p">:</span>
@@ -1082,61 +1189,86 @@
         <span class="n">A_radii</span> <span class="o">=</span> <span class="n">vdw_radii</span><span class="p">(</span><span class="n">A0</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">symbols</span><span class="p">)</span>
         <span class="n">B_radii</span> <span class="o">=</span> <span class="n">vdw_radii</span><span class="p">(</span><span class="n">B0</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">symbols</span><span class="p">)</span>
 
+        <span class="n">engine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;contact method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;energy&quot;</span><span class="p">:</span>
+            <span class="n">elements</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">A0</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_numbers</span><span class="p">)</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">B0</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_numbers</span><span class="p">)</span>
+            <span class="n">charge</span> <span class="o">=</span> <span class="p">(</span><span class="n">A0</span><span class="o">.</span><span class="n">charge</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">B0</span><span class="o">.</span><span class="n">charge</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">engine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_energy_engine</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span> <span class="n">charge</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
         <span class="n">save_props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truthy</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;save scan variables as properties&quot;</span><span class="p">])</span>
         <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">separations</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">orientation</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
-            <span class="n">Ac</span> <span class="o">=</span> <span class="n">A_pool</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">A_pool</span><span class="p">)))]</span>
-            <span class="n">Bc</span> <span class="o">=</span> <span class="n">B_pool</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">B_pool</span><span class="p">)))]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">orientation</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+                <span class="n">Ac</span> <span class="o">=</span> <span class="n">A_pool</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">A_pool</span><span class="p">)))]</span>
+                <span class="n">Bc</span> <span class="o">=</span> <span class="n">B_pool</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="n">rng</span><span class="o">.</span><span class="n">integers</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">B_pool</span><span class="p">)))]</span>
 
-            <span class="c1"># Monomer A is held fixed: centered at the COM on its principal axes,</span>
-            <span class="c1"># so it is identical across the whole scan (and across orientations,</span>
-            <span class="c1"># for a single conformer) -- a clean visual anchor.</span>
-            <span class="n">xyzA</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orient_to_principal_axes</span><span class="p">(</span>
-                <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">Ac</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">)),</span>
-                <span class="n">Ac</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_masses</span><span class="p">,</span>
-            <span class="p">)</span>
-
-            <span class="c1"># Monomer B carries the randomness: its principal-axis frame is</span>
-            <span class="c1"># rotated by R_B, and it approaches from a random direction.</span>
-            <span class="n">R_B</span> <span class="o">=</span> <span class="n">random_rotation_matrix</span><span class="p">(</span><span class="n">rng</span><span class="p">)</span>
-            <span class="n">xyzB</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_orient_to_principal_axes</span><span class="p">(</span>
+                <span class="c1"># Monomer A is held fixed: centered at the COM on its principal</span>
+                <span class="c1"># axes, so it is identical across the whole scan (and across</span>
+                <span class="c1"># orientations, for a single conformer) -- a clean visual anchor.</span>
+                <span class="n">xyzA</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_orient_to_principal_axes</span><span class="p">(</span>
                     <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-                        <span class="n">Bc</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="n">Ac</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                     <span class="p">),</span>
-                    <span class="n">Bc</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_masses</span><span class="p">,</span>
+                    <span class="n">Ac</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_masses</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="o">@</span> <span class="n">R_B</span><span class="o">.</span><span class="n">T</span>
-            <span class="p">)</span>
-            <span class="n">axis</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-            <span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
 
-            <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direction_angles</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
-            <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_euler_zyz</span><span class="p">(</span><span class="n">R_B</span><span class="p">)</span>
-
-            <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_contact_distance</span><span class="p">(</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">A_radii</span><span class="p">,</span> <span class="n">xyzB</span><span class="p">,</span> <span class="n">B_radii</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_separation_schedule</span><span class="p">(</span><span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-                <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">xyzB</span> <span class="o">+</span> <span class="n">axis</span> <span class="o">*</span> <span class="n">d</span><span class="p">])</span>
-                <span class="n">conf</span> <span class="o">=</span> <span class="n">base</span> <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">dimer_sys</span><span class="o">.</span><span class="n">copy_configuration</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
-                <span class="n">conf</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                <span class="n">geometry</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;separation&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">,</span>
-                    <span class="s2">&quot;gap&quot;</span><span class="p">:</span> <span class="n">d</span> <span class="o">-</span> <span class="n">contact</span><span class="p">,</span>
-                    <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">theta</span><span class="p">,</span>
-                    <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="n">phi</span><span class="p">,</span>
-                    <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">,</span>
-                    <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">beta</span><span class="p">,</span>
-                    <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">gamma</span><span class="p">,</span>
-                <span class="p">}</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_name_and_tag</span><span class="p">(</span>
-                    <span class="n">conf</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">geometry</span><span class="p">,</span> <span class="n">save_props</span>
+                <span class="c1"># Monomer B carries the randomness: its principal-axis frame is</span>
+                <span class="c1"># rotated by R_B, and it approaches from a random direction.</span>
+                <span class="n">R_B</span> <span class="o">=</span> <span class="n">random_rotation_matrix</span><span class="p">(</span><span class="n">rng</span><span class="p">)</span>
+                <span class="n">xyzB</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_orient_to_principal_axes</span><span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                            <span class="n">Bc</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="p">),</span>
+                        <span class="n">Bc</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_masses</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="o">@</span> <span class="n">R_B</span><span class="o">.</span><span class="n">T</span>
                 <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_add_subsets</span><span class="p">(</span><span class="n">conf</span><span class="p">,</span> <span class="n">t_fixed</span><span class="p">,</span> <span class="n">t_movable</span><span class="p">,</span> <span class="n">fixed_ids</span><span class="p">,</span> <span class="n">movable_ids</span><span class="p">)</span>
-                <span class="n">separations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="n">axis</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">standard_normal</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+                <span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">dimer_sys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">],</span> <span class="n">separations</span><span class="p">)</span>
+                <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direction_angles</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+                <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_euler_zyz</span><span class="p">(</span><span class="n">R_B</span><span class="p">)</span>
+
+                <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_contact_distance</span><span class="p">(</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">A_radii</span><span class="p">,</span> <span class="n">xyzB</span><span class="p">,</span> <span class="n">B_radii</span><span class="p">,</span> <span class="n">axis</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+                    <span class="k">def</span><span class="w"> </span><span class="nf">assemble</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">xyzA</span><span class="o">=</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">xyzB</span><span class="o">=</span><span class="n">xyzB</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">xyzB</span> <span class="o">+</span> <span class="n">axis</span> <span class="o">*</span> <span class="n">d</span><span class="p">])</span>
+
+                    <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_anchor</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">assemble</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_separation_schedule</span><span class="p">(</span><span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span>
+                <span class="p">):</span>
+                    <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">xyzA</span><span class="p">,</span> <span class="n">xyzB</span> <span class="o">+</span> <span class="n">axis</span> <span class="o">*</span> <span class="n">d</span><span class="p">])</span>
+                    <span class="n">conf</span> <span class="o">=</span> <span class="n">base</span> <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">dimer_sys</span><span class="o">.</span><span class="n">copy_configuration</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+                    <span class="n">conf</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">geometry</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;separation&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">,</span>
+                        <span class="s2">&quot;gap&quot;</span><span class="p">:</span> <span class="n">d</span> <span class="o">-</span> <span class="n">contact</span><span class="p">,</span>
+                        <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">theta</span><span class="p">,</span>
+                        <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="n">phi</span><span class="p">,</span>
+                        <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">,</span>
+                        <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">beta</span><span class="p">,</span>
+                        <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">gamma</span><span class="p">,</span>
+                    <span class="p">}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_name_and_tag</span><span class="p">(</span>
+                        <span class="n">conf</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">geometry</span><span class="p">,</span> <span class="n">save_props</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_subsets</span><span class="p">(</span><span class="n">conf</span><span class="p">,</span> <span class="n">t_fixed</span><span class="p">,</span> <span class="n">t_movable</span><span class="p">,</span> <span class="n">fixed_ids</span><span class="p">,</span> <span class="n">movable_ids</span><span class="p">)</span>
+                    <span class="n">separations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+                    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">engine</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">],</span> <span class="n">separations</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_model</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;n_energy_calls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">n_energy_calls</span>
+        <span class="k">return</span> <span class="n">dimer_sys</span><span class="p">,</span> <span class="n">stats</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_from_dimers</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">system_db</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Mode B: radial profiles from prepared complexes (fixed orientation).</span>
@@ -1173,65 +1305,95 @@
         <span class="n">fixed_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">fixed_idx</span><span class="p">]</span>
         <span class="n">movable_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom_ids</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">movable_idx</span><span class="p">]</span>
 
+        <span class="n">engine</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;contact method&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;energy&quot;</span><span class="p">:</span>
+            <span class="n">engine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_open_energy_engine</span><span class="p">(</span>
+                <span class="nb">list</span><span class="p">(</span><span class="n">d0</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">atomic_numbers</span><span class="p">),</span> <span class="n">d0</span><span class="o">.</span><span class="n">charge</span> <span class="ow">or</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span>
+            <span class="p">)</span>
+
         <span class="n">save_props</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truthy</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;save scan variables as properties&quot;</span><span class="p">])</span>
         <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">separations</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">orientation</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">structure</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">structure</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">!=</span> <span class="n">d0</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Skipping &#39;</span><span class="si">{</span><span class="n">structure</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;: it has a different number of &quot;</span>
-                    <span class="s2">&quot;atoms than the first structure (mixed compositions are not &quot;</span>
-                    <span class="s2">&quot;supported).&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">structure</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">structure</span><span class="o">.</span><span class="n">n_atoms</span> <span class="o">!=</span> <span class="n">d0</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Skipping &#39;</span><span class="si">{</span><span class="n">structure</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;: it has a different number of &quot;</span>
+                        <span class="s2">&quot;atoms than the first structure (mixed compositions are not &quot;</span>
+                        <span class="s2">&quot;supported).&quot;</span>
+                    <span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                    <span class="n">structure</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
                 <span class="p">)</span>
-                <span class="k">continue</span>
-            <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
-                <span class="n">structure</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">as_array</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-                <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">fixed_xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">fixed_idx</span><span class="p">]</span>
-            <span class="n">movable_xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">movable_idx</span><span class="p">]</span>
-            <span class="n">fixed_center</span> <span class="o">=</span> <span class="n">fixed_xyz</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">movable_center</span> <span class="o">=</span> <span class="n">movable_xyz</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">axis</span> <span class="o">=</span> <span class="n">movable_center</span> <span class="o">-</span> <span class="n">fixed_center</span>
-            <span class="n">distance0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">distance0</span> <span class="o">&lt;</span> <span class="mf">1.0e-6</span><span class="p">:</span>
-                <span class="k">continue</span>
-            <span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">/</span> <span class="n">distance0</span>
+                <span class="n">fixed_xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">fixed_idx</span><span class="p">]</span>
+                <span class="n">movable_xyz</span> <span class="o">=</span> <span class="n">xyz</span><span class="p">[</span><span class="n">movable_idx</span><span class="p">]</span>
+                <span class="n">fixed_center</span> <span class="o">=</span> <span class="n">fixed_xyz</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">movable_center</span> <span class="o">=</span> <span class="n">movable_xyz</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">axis</span> <span class="o">=</span> <span class="n">movable_center</span> <span class="o">-</span> <span class="n">fixed_center</span>
+                <span class="n">distance0</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">distance0</span> <span class="o">&lt;</span> <span class="mf">1.0e-6</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">axis</span> <span class="o">=</span> <span class="n">axis</span> <span class="o">/</span> <span class="n">distance0</span>
 
-            <span class="n">fixed_centered</span> <span class="o">=</span> <span class="n">fixed_xyz</span> <span class="o">-</span> <span class="n">fixed_center</span>
-            <span class="n">movable_centered</span> <span class="o">=</span> <span class="n">movable_xyz</span> <span class="o">-</span> <span class="n">movable_center</span>
-            <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_contact_distance</span><span class="p">(</span>
-                <span class="n">fixed_centered</span><span class="p">,</span> <span class="n">fixed_radii</span><span class="p">,</span> <span class="n">movable_centered</span><span class="p">,</span> <span class="n">movable_radii</span><span class="p">,</span> <span class="n">axis</span>
-            <span class="p">)</span>
-
-            <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direction_angles</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
-            <span class="n">_</span><span class="p">,</span> <span class="n">movable_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_principal_axes</span><span class="p">(</span><span class="n">movable_xyz</span><span class="p">,</span> <span class="n">movable_masses</span><span class="p">)</span>
-            <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_euler_zyz</span><span class="p">(</span><span class="n">movable_axes</span><span class="p">)</span>
-
-            <span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_separation_schedule</span><span class="p">(</span><span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
-                <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span>
-                <span class="n">coordinates</span><span class="p">[</span><span class="n">fixed_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">fixed_centered</span>
-                <span class="n">coordinates</span><span class="p">[</span><span class="n">movable_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">movable_centered</span> <span class="o">+</span> <span class="n">axis</span> <span class="o">*</span> <span class="n">d</span>
-                <span class="n">conf</span> <span class="o">=</span> <span class="n">base</span> <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">out_sys</span><span class="o">.</span><span class="n">copy_configuration</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
-                <span class="n">conf</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">coordinates</span><span class="p">,</span> <span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-                <span class="n">geometry</span> <span class="o">=</span> <span class="p">{</span>
-                    <span class="s2">&quot;separation&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">,</span>
-                    <span class="s2">&quot;gap&quot;</span><span class="p">:</span> <span class="n">d</span> <span class="o">-</span> <span class="n">contact</span><span class="p">,</span>
-                    <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">theta</span><span class="p">,</span>
-                    <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="n">phi</span><span class="p">,</span>
-                    <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">,</span>
-                    <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">beta</span><span class="p">,</span>
-                    <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">gamma</span><span class="p">,</span>
-                <span class="p">}</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_name_and_tag</span><span class="p">(</span>
-                    <span class="n">conf</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">geometry</span><span class="p">,</span> <span class="n">save_props</span>
+                <span class="n">fixed_centered</span> <span class="o">=</span> <span class="n">fixed_xyz</span> <span class="o">-</span> <span class="n">fixed_center</span>
+                <span class="n">movable_centered</span> <span class="o">=</span> <span class="n">movable_xyz</span> <span class="o">-</span> <span class="n">movable_center</span>
+                <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_contact_distance</span><span class="p">(</span>
+                    <span class="n">fixed_centered</span><span class="p">,</span> <span class="n">fixed_radii</span><span class="p">,</span> <span class="n">movable_centered</span><span class="p">,</span> <span class="n">movable_radii</span><span class="p">,</span> <span class="n">axis</span>
                 <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_add_subsets</span><span class="p">(</span><span class="n">conf</span><span class="p">,</span> <span class="n">t_fixed</span><span class="p">,</span> <span class="n">t_movable</span><span class="p">,</span> <span class="n">fixed_ids</span><span class="p">,</span> <span class="n">movable_ids</span><span class="p">)</span>
-                <span class="n">separations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
-                <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
 
-        <span class="k">return</span> <span class="n">out_sys</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">separations</span><span class="p">)</span>
+                <span class="n">theta</span><span class="p">,</span> <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direction_angles</span><span class="p">(</span><span class="n">axis</span><span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">movable_axes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_principal_axes</span><span class="p">(</span><span class="n">movable_xyz</span><span class="p">,</span> <span class="n">movable_masses</span><span class="p">)</span>
+                <span class="n">alpha</span><span class="p">,</span> <span class="n">beta</span><span class="p">,</span> <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_euler_zyz</span><span class="p">(</span><span class="n">movable_axes</span><span class="p">)</span>
+
+                <span class="k">def</span><span class="w"> </span><span class="nf">assemble</span><span class="p">(</span>
+                    <span class="n">d</span><span class="p">,</span>
+                    <span class="n">fixed_centered</span><span class="o">=</span><span class="n">fixed_centered</span><span class="p">,</span>
+                    <span class="n">movable_centered</span><span class="o">=</span><span class="n">movable_centered</span><span class="p">,</span>
+                    <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span>
+                    <span class="n">fixed_idx</span><span class="o">=</span><span class="n">fixed_idx</span><span class="p">,</span>
+                    <span class="n">movable_idx</span><span class="o">=</span><span class="n">movable_idx</span><span class="p">,</span>
+                    <span class="n">template</span><span class="o">=</span><span class="n">xyz</span><span class="p">,</span>
+                <span class="p">):</span>
+                    <span class="n">c</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty_like</span><span class="p">(</span><span class="n">template</span><span class="p">)</span>
+                    <span class="n">c</span><span class="p">[</span><span class="n">fixed_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">fixed_centered</span>
+                    <span class="n">c</span><span class="p">[</span><span class="n">movable_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">movable_centered</span> <span class="o">+</span> <span class="n">axis</span> <span class="o">*</span> <span class="n">d</span>
+                    <span class="k">return</span> <span class="n">c</span>
+
+                <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">contact</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_anchor</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">assemble</span><span class="p">,</span> <span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">point</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_separation_schedule</span><span class="p">(</span><span class="n">contact</span><span class="p">,</span> <span class="n">P</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="mi">1</span>
+                <span class="p">):</span>
+                    <span class="n">conf</span> <span class="o">=</span> <span class="n">base</span> <span class="k">if</span> <span class="n">count</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">out_sys</span><span class="o">.</span><span class="n">copy_configuration</span><span class="p">(</span><span class="n">base</span><span class="p">)</span>
+                    <span class="n">conf</span><span class="o">.</span><span class="n">atoms</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">assemble</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">fractionals</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">geometry</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;separation&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">,</span>
+                        <span class="s2">&quot;gap&quot;</span><span class="p">:</span> <span class="n">d</span> <span class="o">-</span> <span class="n">contact</span><span class="p">,</span>
+                        <span class="s2">&quot;theta&quot;</span><span class="p">:</span> <span class="n">theta</span><span class="p">,</span>
+                        <span class="s2">&quot;phi&quot;</span><span class="p">:</span> <span class="n">phi</span><span class="p">,</span>
+                        <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">alpha</span><span class="p">,</span>
+                        <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">beta</span><span class="p">,</span>
+                        <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">gamma</span><span class="p">,</span>
+                    <span class="p">}</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_name_and_tag</span><span class="p">(</span>
+                        <span class="n">conf</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">point</span><span class="p">,</span> <span class="n">geometry</span><span class="p">,</span> <span class="n">save_props</span>
+                    <span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_add_subsets</span><span class="p">(</span><span class="n">conf</span><span class="p">,</span> <span class="n">t_fixed</span><span class="p">,</span> <span class="n">t_movable</span><span class="p">,</span> <span class="n">fixed_ids</span><span class="p">,</span> <span class="n">movable_ids</span><span class="p">)</span>
+                    <span class="n">separations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">d</span><span class="p">)</span>
+                    <span class="n">count</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">engine</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+        <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">orientation</span><span class="p">,</span> <span class="n">separations</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_model</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;n_energy_calls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">n_energy_calls</span>
+        <span class="k">return</span> <span class="n">out_sys</span><span class="p">,</span> <span class="n">stats</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_system_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">name_a</span><span class="p">,</span> <span class="n">name_b</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Resolve the output system name.&quot;&quot;&quot;</span>
@@ -1257,8 +1419,8 @@
             <span class="n">conf</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">geometry</span><span class="p">[</span><span class="s1">&#39;separation&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> Å&quot;</span>
         <span class="k">elif</span> <span class="n">naming</span> <span class="o">==</span> <span class="s2">&quot;sequential&quot;</span><span class="p">:</span>
             <span class="n">conf</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>  <span class="c1"># orientation/distance</span>
-            <span class="n">conf</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">orientation</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">point</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># orientation,distance</span>
+            <span class="n">conf</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">orientation</span><span class="si">}</span><span class="s2">,</span><span class="si">{</span><span class="n">point</span><span class="si">}</span><span class="s2">&quot;</span>
 
         <span class="k">if</span> <span class="n">save_props</span><span class="p">:</span>
             <span class="n">p</span> <span class="o">=</span> <span class="s2">&quot;#DimerBuilder#scan&quot;</span>

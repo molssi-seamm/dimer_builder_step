@@ -1,7 +1,10 @@
 Welcome to the documentation for the Dimer Builder SEAMM plug-in
 ================================================================
 
-Dimer Builder <does what? replace this text>
+The Dimer Builder step generates configurations of a pair (or small cluster) of
+molecules across a range of separations and relative orientations -- for
+computing intermolecular interaction energies and building training sets for
+machine-learned force fields.
 
 .. grid:: 1 1 2 2
 

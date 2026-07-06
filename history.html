@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.6.30 documentation</title>
+    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.7.6 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="_static/documentation_options.js?v=4ce6c646"></script>
+    <script src="_static/documentation_options.js?v=29693f0c"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -54,7 +54,7 @@
     <link rel="prev" title="Development Team" href="authors.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.30" />
+  <meta name="docsearch:version" content="2026.7.6" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -510,6 +510,20 @@
   <section id="history">
 <h1>History<a class="headerlink" href="#history" title="Link to this heading">#</a></h1>
 <dl>
+<dt>2026.7.6 – Energy-based contact and GUI refinements</dt><dd><ul class="simple">
+<li><p>Added an <code class="docutils literal notranslate"><span class="pre">energy</span></code> contact method: with a Model Chemistry step before the
+Dimer Builder step, the contact distance is found from the energy minimum
+along each approach direction (falling back to the van der Waals estimate
+for orientations with no binding well). It uses the new <code class="docutils literal notranslate"><span class="pre">seamm_mdi</span></code> MDI
+driver to evaluate the energy, and reports which model chemistry was used
+and how many times it was called.</p></li>
+<li><p>Configuration names now use a comma (e.g. <code class="docutils literal notranslate"><span class="pre">2,1</span></code>) rather than a slash,
+which is reserved for separating system and configuration names.</p></li>
+<li><p>The dialog no longer shows the unused Flowchart tab, and reminds you to add
+a Model Chemistry step when the energy contact method is chosen and none
+precedes this step.</p></li>
+</ul>
+</dd>
 <dt>2026.6.30 – Initial release</dt><dd><ul>
 <li><p>Generates sets of dimer (molecule-pair) configurations across a range of
 separations and relative orientations, for building interaction-energy data

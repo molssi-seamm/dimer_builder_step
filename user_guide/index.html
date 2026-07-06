@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.6.30 documentation</title>
+    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.6 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../_static/documentation_options.js?v=4ce6c646"></script>
+    <script src="../_static/documentation_options.js?v=29693f0c"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -55,7 +55,7 @@
     <link rel="prev" title="Getting Started" href="../getting_started/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.30" />
+  <meta name="docsearch:version" content="2026.7.6" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -510,6 +510,87 @@
                   
   <section id="user-guide">
 <span id="id1"></span><h1>User Guide<a class="headerlink" href="#user-guide" title="Link to this heading">#</a></h1>
+<p>The Dimer Builder step generates sets of configurations of a pair (or small
+cluster) of molecules across a range of separations and relative orientations.
+The configurations are stored as conformers of a new system, ready to be fed to
+a quantum-chemistry step for computing interaction energies, or exported as a
+training set for machine-learned force fields (in the spirit of the DES370K
+dataset).</p>
+<section id="input">
+<h2>Input<a class="headerlink" href="#input" title="Link to this heading">#</a></h2>
+<p>Set <strong>Input</strong> to choose how the structures are provided:</p>
+<dl class="simple">
+<dt><strong>two monomer sets</strong></dt><dd><p>Assemble dimers from conformers of <em>monomer A</em> and <em>monomer B</em> at random
+relative orientations. Each of the two monomers is given as:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">current</span></code> – the current system;</p></li>
+<li><p>a <strong>system name</strong> – use that system’s configurations as the conformer
+pool, selected by the <em>using configurations</em> control (<code class="docutils literal notranslate"><span class="pre">all</span></code>, <code class="docutils literal notranslate"><span class="pre">last</span></code>,
+<code class="docutils literal notranslate"><span class="pre">first</span></code>, or a name pattern); or</p></li>
+<li><p>a <code class="docutils literal notranslate"><span class="pre">$variable</span></code> holding a list of configurations (all are used).</p></li>
+</ul>
+</dd>
+<dt><strong>prepared dimers</strong></dt><dd><p>Take already-assembled complexes (from <em>monomer A</em>) and scan each one,
+sliding a “movable” group relative to a “fixed” group. The two groups come
+from <code class="docutils literal notranslate"><span class="pre">fixed</span></code> / <code class="docutils literal notranslate"><span class="pre">movable</span></code> subsets on the input if present (so you can
+group several molecules per side); otherwise the last molecule is movable
+and the rest are fixed.</p>
+</dd>
+</dl>
+</section>
+<section id="orientation-sampling">
+<h2>Orientation sampling<a class="headerlink" href="#orientation-sampling" title="Link to this heading">#</a></h2>
+<p>For “two monomer sets”, <strong>Number of orientations</strong> samples are generated. Each
+sample independently draws a random conformer of A, a random conformer of B, and
+a random relative orientation. Monomer A is held fixed (centered on its
+principal axes) so it is a stable visual anchor across the whole run; monomer B
+carries the randomness. Set <strong>Random seed</strong> to an integer for reproducible
+orientations, or leave it as <code class="docutils literal notranslate"><span class="pre">random</span></code>.</p>
+</section>
+<section id="the-radial-scan">
+<h2>The radial scan<a class="headerlink" href="#the-radial-scan" title="Link to this heading">#</a></h2>
+<p>For each orientation the center-to-center separation is scanned from just inside
+contact out to a maximum:</p>
+<ul class="simple">
+<li><p><strong>Find contact using</strong> – <code class="docutils literal notranslate"><span class="pre">van</span> <span class="pre">der</span> <span class="pre">Waals</span> <span class="pre">radii</span></code> (a fast geometric estimate)
+or <code class="docutils literal notranslate"><span class="pre">energy</span></code> (see below).</p></li>
+<li><p><strong>Innermost gap</strong> – how far inside the contact distance to start (a small
+negative value gives a slight overlap).</p></li>
+<li><p><strong>Maximum separation</strong> – the largest center-to-center distance.</p></li>
+<li><p><strong>Spacing</strong> – <code class="docutils literal notranslate"><span class="pre">geometric</span></code> (the default; points cluster near contact and
+thin out in the tail), <code class="docutils literal notranslate"><span class="pre">linear</span></code>, or <code class="docutils literal notranslate"><span class="pre">explicit</span></code> (a list you provide in
+<strong>Separations</strong>, as gaps beyond contact).</p></li>
+<li><p><strong>Number of separations</strong> – how many points per scan (for geometric/linear).</p></li>
+</ul>
+<section id="energy-based-contact">
+<h3>Energy-based contact<a class="headerlink" href="#energy-based-contact" title="Link to this heading">#</a></h3>
+<p>With <strong>Find contact using</strong> = <code class="docutils literal notranslate"><span class="pre">energy</span></code>, the step drives a quantum-chemistry
+engine to find the energy <strong>minimum</strong> along each approach direction and anchors
+the scan there; orientations with no binding well fall back to the van der Waals
+contact. This requires a <strong>Model Chemistry step before the Dimer Builder step</strong>
+to define the engine and method (for example MOPAC PM6-ORG); the dialog reminds
+you if one is missing. A cheap semiempirical method is usually the right choice
+here – the energy is only used to place the scan, not to produce the final data
+set. The step reports which model chemistry was used and how many times it was
+called.</p>
+</section>
+</section>
+<section id="what-is-stored">
+<h2>What is stored<a class="headerlink" href="#what-is-stored" title="Link to this heading">#</a></h2>
+<p>All the generated configurations become conformers of a <strong>new system</strong> (named
+from the two monomers by default). On each configuration the step:</p>
+<ul class="simple">
+<li><p>records the scan geometry as properties – the separation and the gap beyond
+contact, the approach-direction angles, and the movable group’s orientation
+(Euler) angles – so configurations can be filtered and analyzed later
+(toggle with <strong>Save scan variables as properties</strong>); and</p></li>
+<li><p>marks the two pieces as <code class="docutils literal notranslate"><span class="pre">fixed</span></code> and <code class="docutils literal notranslate"><span class="pre">movable</span></code> <strong>subsets</strong>, so a downstream
+interaction-energy or counterpoise calculation can find them.</p></li>
+</ul>
+<p><strong>Name the configurations</strong> controls the configuration names:
+<code class="docutils literal notranslate"><span class="pre">orientation,distance</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">2,1</span></code> – orientation 2, point 1; the points of
+one scan group together), <code class="docutils literal notranslate"><span class="pre">separation</span></code>, or <code class="docutils literal notranslate"><span class="pre">sequential</span></code>.</p>
+</section>
 <section id="indices-and-tables">
 <h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading">#</a></h2>
 <ul class="simple">
@@ -566,6 +647,13 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#input">Input</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#orientation-sampling">Orientation sampling</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-radial-scan">The radial scan</a><ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-based-contact">Energy-based contact</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-stored">What is stored</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
   </nav></div>
