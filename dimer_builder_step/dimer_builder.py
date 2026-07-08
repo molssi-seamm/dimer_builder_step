@@ -538,6 +538,21 @@ class DimerBuilder(seamm.Node):
     # Energy-based contact ('contact method' = 'energy'), via seamm_mdi
     # ----------------------------------------------------------------- #
 
+    @staticmethod
+    def _mdi_method_and_basis(mc, options):
+        """The (method, basis) to launch the MDI engine with.
+
+        ``method`` is the engine's real keyword -- ``options['mdi_method_arg']``,
+        which un-aliases an ORCA functional whose '/' was replaced in the
+        model-chemistry string -- falling back to the parsed ``mc['method']``.
+        ``basis`` is ``options['mdi_basis_arg']``, or ``None`` for engines that
+        take a method alone (MOPAC, xTB) and whose ``get_mdi_engine_command`` has
+        no basis argument, so a basis must not be passed to them.
+        """
+        method = options.get("mdi_method_arg") or mc.get("method")
+        basis = options.get("mdi_basis_arg")
+        return method, basis
+
     def _open_energy_engine(self, elements, charge, multiplicity):
         """Start an MDI engine for the dimer from the upstream model chemistry.
 
@@ -565,20 +580,21 @@ class DimerBuilder(seamm.Node):
         step = self.flowchart.plugin_manager.get(mc["step"])
         executor = self.flowchart.executor
         seamm_options = self.global_options
-        method = mc["method"]
         n_atoms = len(elements)
+        method, basis = self._mdi_method_and_basis(mc, options)
 
         def build_argv(hostname, port):
-            return step.get_mdi_engine_command(
-                executor,
-                seamm_options,
-                method=method,
-                port=port,
-                hostname=hostname,
-                charge=charge,
-                multiplicity=multiplicity,
-                n_atoms=n_atoms,
-            )
+            kwargs = {
+                "method": method,
+                "port": port,
+                "hostname": hostname,
+                "charge": charge,
+                "multiplicity": multiplicity,
+                "n_atoms": n_atoms,
+            }
+            if basis is not None:
+                kwargs["basis"] = basis
+            return step.get_mdi_engine_command(executor, seamm_options, **kwargs)
 
         engine = MDIEngine(build_argv, elements=elements, name="DimerBuilder")
         engine.start()
@@ -782,6 +798,7 @@ class DimerBuilder(seamm.Node):
         fixed_radii = radii[fixed_idx]
         movable_radii = radii[movable_idx]
         masses = np.asarray(d0.atoms.atomic_masses)
+        fixed_masses = masses[fixed_idx]
         movable_masses = masses[movable_idx]
 
         t_fixed, t_movable = self._ensure_templates(system_db)
@@ -814,8 +831,8 @@ class DimerBuilder(seamm.Node):
                 )
                 fixed_xyz = xyz[fixed_idx]
                 movable_xyz = xyz[movable_idx]
-                fixed_center = fixed_xyz.mean(axis=0)
-                movable_center = movable_xyz.mean(axis=0)
+                fixed_center = np.average(fixed_xyz, axis=0, weights=fixed_masses)
+                movable_center = np.average(movable_xyz, axis=0, weights=movable_masses)
                 axis = movable_center - fixed_center
                 distance0 = np.linalg.norm(axis)
                 if distance0 < 1.0e-6:

@@ -2,6 +2,14 @@
 History
 =======
 
+2026.7.7 -- Consistent center-of-mass separation
+    * The center-to-center separation for prepared dimers is now measured between
+      the centers of mass of the "fixed" and "movable" groups, matching the
+      two-monomer-sets path (which was already mass-weighted). Previously the
+      prepared-dimers path used the unweighted geometric center, so the reported
+      ``dimer separation`` / ``dimer gap`` properties now have a single,
+      consistent meaning across both input modes.
+
 2026.7.6 -- Energy-based contact and GUI refinements
     * Added an ``energy`` contact method: with a Model Chemistry step before the
       Dimer Builder step, the contact distance is found from the energy minimum
