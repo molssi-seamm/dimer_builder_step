@@ -66,11 +66,16 @@ With **Find contact using** = ``energy``, the step drives a quantum-chemistry
 engine to find the energy **minimum** along each approach direction and anchors
 the scan there; orientations with no binding well fall back to the van der Waals
 contact. This requires a **Model Chemistry step before the Dimer Builder step**
-to define the engine and method (for example MOPAC PM6-ORG); the dialog reminds
-you if one is missing. A cheap semiempirical method is usually the right choice
-here -- the energy is only used to place the scan, not to produce the final data
-set. The step reports which model chemistry was used and how many times it was
-called.
+to define the engine and method; the dialog reminds you if one is missing. The
+engine is driven over `MDI <https://molssi-mdi.github.io/MDI_Library/>`_, so any
+MDI-capable model chemistry works -- **MOPAC** or **xTB** (semiempirical), or
+**ORCA** (HF, MP2, or an analytic-gradient DFT functional; ORCA methods without
+an analytic gradient, such as DLPNO-CCSD(T), are not offered for this). A cheap
+method is usually the right choice: the energy only *places* the scan, it does
+not produce the final data set, and ORCA in particular runs its binary once per
+geometry (reusing orbitals between points) so it is heavier than the
+semiempirical engines. The step reports which model chemistry was used and how
+many times it was called.
 
 What is stored
 ==============
