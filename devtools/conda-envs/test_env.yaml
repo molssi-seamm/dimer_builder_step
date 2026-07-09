@@ -27,6 +27,7 @@ dependencies:
 
   # Pip-only installs
   - pip:
+    - seamm_mdi
     # Documentation
     - sphinx-copybutton
     - sphinxnotes-strike

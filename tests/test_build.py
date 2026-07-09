@@ -11,7 +11,21 @@ from molsystem.system_db import SystemDB
 from seamm_util import Q_
 
 import dimer_builder_step
-from dimer_builder_step.dimer_builder import vdw_radii
+from dimer_builder_step.dimer_builder import DimerBuilder, vdw_radii
+
+
+def test_mdi_method_and_basis():
+    """The engine method/basis picked from a model chemistry: MOPAC/xTB get a
+    method alone (no basis); ORCA gets the real (un-aliased) keyword + basis."""
+    assert DimerBuilder._mdi_method_and_basis(
+        {"method": "PM6-ORG"}, {"mdi_method_arg": "PM6-ORG"}
+    ) == ("PM6-ORG", None)
+    assert DimerBuilder._mdi_method_and_basis(
+        {"method": "REVDSD-PBEP86-D4_2021"},
+        {"mdi_method_arg": "REVDSD-PBEP86-D4/2021", "mdi_basis_arg": "def2-TZVP"},
+    ) == ("REVDSD-PBEP86-D4/2021", "def2-TZVP")
+    # Falls back to the parsed method when no mdi_method_arg is given.
+    assert DimerBuilder._mdi_method_and_basis({"method": "PM7"}, {}) == ("PM7", None)
 
 
 def _add_water(configuration):
