@@ -2,7 +2,13 @@
 History
 =======
 
-2026.7.7 -- Consistent center-of-mass separation
+2026.7.9 -- ORCA engine for energy contact, and consistent CoM separation
+    * The energy-based contact search can now use **ORCA** (via a Model
+      Chemistry step), in addition to MOPAC and xTB. Any MDI-capable model
+      chemistry works; the model chemistry's method and, for ORCA, its basis set
+      are passed to the engine automatically.
+    * ``seamm_mdi`` is now a declared dependency (it was previously imported
+      lazily), so the energy contact method works out of the box.
     * The center-to-center separation for prepared dimers is now measured between
       the centers of mass of the "fixed" and "movable" groups, matching the
       two-monomer-sets path (which was already mass-weighted). Previously the
