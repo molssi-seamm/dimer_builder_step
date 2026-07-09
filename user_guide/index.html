@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.6 documentation</title>
+    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.9 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
 
-    <script src="../_static/documentation_options.js?v=29693f0c"></script>
+    <script src="../_static/documentation_options.js?v=c1739cce"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -55,7 +55,7 @@
     <link rel="prev" title="Getting Started" href="../getting_started/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.6" />
+  <meta name="docsearch:version" content="2026.7.9" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -568,11 +568,16 @@ thin out in the tail), <code class="docutils literal notranslate"><span class="p
 engine to find the energy <strong>minimum</strong> along each approach direction and anchors
 the scan there; orientations with no binding well fall back to the van der Waals
 contact. This requires a <strong>Model Chemistry step before the Dimer Builder step</strong>
-to define the engine and method (for example MOPAC PM6-ORG); the dialog reminds
-you if one is missing. A cheap semiempirical method is usually the right choice
-here – the energy is only used to place the scan, not to produce the final data
-set. The step reports which model chemistry was used and how many times it was
-called.</p>
+to define the engine and method; the dialog reminds you if one is missing. The
+engine is driven over <a class="reference external" href="https://molssi-mdi.github.io/MDI_Library/">MDI</a>, so any
+MDI-capable model chemistry works – <strong>MOPAC</strong> or <strong>xTB</strong> (semiempirical), or
+<strong>ORCA</strong> (HF, MP2, or an analytic-gradient DFT functional; ORCA methods without
+an analytic gradient, such as DLPNO-CCSD(T), are not offered for this). A cheap
+method is usually the right choice: the energy only <em>places</em> the scan, it does
+not produce the final data set, and ORCA in particular runs its binary once per
+geometry (reusing orbitals between points) so it is heavier than the
+semiempirical engines. The step reports which model chemistry was used and how
+many times it was called.</p>
 </section>
 </section>
 <section id="what-is-stored">
