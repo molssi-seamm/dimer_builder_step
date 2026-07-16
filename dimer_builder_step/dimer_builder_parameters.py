@@ -187,7 +187,9 @@ class DimerBuilderParameters(seamm.Parameters):
             "help_text": (
                 "The closest point of the scan, measured as the gap beyond "
                 "contact (0 = touching). A negative value starts inside contact, "
-                "i.e. with a slight overlap."
+                "i.e. with a slight overlap. Not used for 'energy-stratified' "
+                "spacing, which anchors on the energy minimum and sets its inner "
+                "bound by energy (the repulsive-wall target level)."
             ),
         },
         "maximum separation": {

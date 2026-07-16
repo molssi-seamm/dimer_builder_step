@@ -807,33 +807,27 @@ class DimerBuilder(seamm.Node):
     def _energy_profile(self, engine, assemble, seed, P):
         """Sample the interaction energy ΔE(R) along the approach axis.
 
-        ΔE is referenced to the far-point asymptote -- the energy at the largest
-        separation, which is E_A + E_B since the fragments no longer interact --
-        so ΔE(R) → 0 as they separate and tracks the intermolecular physics
-        (monomer distortion cancels). This is the surrogate shape the stratified
-        schedule inverts; it need only be qualitatively right.
+        Energy-anchored: the van der Waals ``seed`` is only a starting guess to
+        bracket the minimum search -- it does not set the scan bounds. The
+        profile is built relative to the located energy minimum:
+
+        * **outward** from the minimum to the maximum separation -- the
+          attractive tail plus the far-point reference (E at max separation ≈
+          E_A + E_B, so ΔE → 0 there and ΔE tracks only the intermolecular
+          physics); and
+        * **inward** from the minimum, one step at a time, until ΔE rises past
+          the largest positive target level -- so the repulsive wall is covered
+          *by energy*, not by a vdW-relative offset (down to a physical floor).
 
         Returns ``(ds, dE, d_min, De)``: the center-to-center grid ``ds`` (Å),
-        the interaction energy ``dE`` (kJ/mol) at each point, the location
-        ``d_min`` of the ΔE minimum (Å), and the well depth ``De`` = −min(ΔE)
-        (kJ/mol, 0 if the orientation has no binding well in range).
-
-        The inner bound is auto-extended when needed: the default innermost gap
-        can land right on a deep ΔE minimum, leaving no repulsive wall to sample.
-        If the minimum sits at the innermost point, or the wall there has not
-        risen to the largest positive target level, more points are added inward
-        (down to a floor) so the wall -- and the +kBT / +N·kBT levels -- are
-        always represented.
+        the interaction energy ``dE`` (kJ/mol), the ΔE minimum ``d_min`` (Å), and
+        the well depth ``De`` = −min(ΔE) (kJ/mol, 0 if there is no well). Note
+        'innermost gap' is not used here -- it applies only to the vdW-contact /
+        geometric spacings.
         """
-        inner_gap = P["innermost gap"].to("Å").magnitude
         max_sep = P["maximum separation"].to("Å").magnitude
         n = max(int(P["number of separations"]), 11)
-
-        d_lo = max(seed + inner_gap, 0.3)
-        d_hi = max_sep if max_sep > d_lo + 0.5 else d_lo + 3.0
-        step = (d_hi - d_lo) / (n - 1)
         floor = max(seed - 2.0, 1.0)  # keep separations physically sane
-
         hartree_to_kJmol = Q_(1.0, "hartree").to("kJ/mol").magnitude
         kBT = self._kBT(P)
 
@@ -841,24 +835,30 @@ class DimerBuilder(seamm.Node):
             engine.set_coordinates(assemble(float(d)), units="Å")
             return engine.energy(units="hartree")
 
-        ds = list(np.linspace(d_lo, d_hi, n))
-        es = [energy_at(d) for d in ds]
-        e_ref = es[-1]  # far-point asymptote = E_A + E_B (fixed reference)
+        # 1. Locate the energy minimum; the vdW seed only brackets the search.
+        anchor = self._energy_anchor(engine, assemble, seed, P)
 
-        for _ in range(20):  # bounded inward extension
+        # 2. Outward branch: anchor -> maximum separation (tail + far reference).
+        d_hi = max_sep if max_sep > anchor + 0.5 else anchor + 3.0
+        ds = list(np.linspace(anchor, d_hi, n))
+        es = [energy_at(d) for d in ds]
+        e_ref = es[-1]  # E at maximum separation ≈ E_A + E_B
+        step = (d_hi - anchor) / (n - 1)
+
+        # 3. Inward branch: walk in from the anchor until ΔE reaches the largest
+        #    positive target level (the repulsive wall), down to the floor.
+        d = anchor - step
+        while d >= floor:
+            e = energy_at(d)
+            ds.insert(0, d)
+            es.insert(0, e)
             dE = (np.array(es) - e_ref) * hartree_to_kJmol
             De = float(-dE.min()) if dE.min() < 0.0 else 0.0
             targets = self._energy_levels(De, kBT, P)
             max_pos = max([t for t in targets if t > 0.0], default=0.0)
-            wall_high_enough = dE[0] >= max_pos
-            min_is_interior = int(np.argmin(dE)) > 0
-            if (wall_high_enough and min_is_interior) or ds[0] <= floor:
+            if (e - e_ref) * hartree_to_kJmol >= max_pos:
                 break
-            new_d = max(ds[0] - step, floor)
-            if new_d >= ds[0]:
-                break
-            ds.insert(0, new_d)
-            es.insert(0, energy_at(new_d))
+            d -= step
 
         ds = np.array(ds)
         dE = (np.array(es) - e_ref) * hartree_to_kJmol

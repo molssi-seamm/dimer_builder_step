@@ -170,6 +170,10 @@ class TkDimerBuilder(seamm.TkNode):
             )
             row += 1
         for key in ("innermost gap", "maximum separation", "spacing"):
+            # Energy-stratified spacing anchors on the energy minimum and sets
+            # its inner bound by energy, so the innermost gap does not apply.
+            if key == "innermost gap" and spacing == "energy-stratified":
+                continue
             add(key)
         if spacing == "explicit":
             add("separations")
