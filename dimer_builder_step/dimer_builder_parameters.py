@@ -203,14 +203,17 @@ class DimerBuilderParameters(seamm.Parameters):
             "default": "geometric",
             "kind": "enum",
             "default_units": "",
-            "enumeration": ("geometric", "linear", "explicit"),
+            "enumeration": ("geometric", "linear", "explicit", "energy-stratified"),
             "format_string": "",
             "description": "Spacing:",
             "help_text": (
                 "How the scan points are distributed along the gap coordinate. "
                 "'geometric' clusters points near contact and thins them in the "
                 "tail; 'linear' spaces them evenly; 'explicit' uses the list in "
-                "'separations'."
+                "'separations'. 'energy-stratified' places points at target "
+                "interaction-energy levels along the ΔE(R) profile (requires the "
+                "'energy' contact method), giving a flat-in-energy sample from the "
+                "repulsive wall through the well to the asymptote."
             ),
         },
         "number of separations": {
@@ -222,7 +225,77 @@ class DimerBuilderParameters(seamm.Parameters):
             "description": "Number of separations:",
             "help_text": (
                 "How many points to place along each radial profile, for "
-                "'geometric' or 'linear' spacing."
+                "'geometric' or 'linear' spacing. For 'energy-stratified' spacing "
+                "this is the resolution of the ΔE(R) profile (the number of "
+                "energy evaluations), not the number of output points -- those are "
+                "set by the 'energy levels'."
+            ),
+        },
+        # ------------------------------------------------------------------ #
+        # Energy-stratified spacing (needs the 'energy' contact method)
+        # ------------------------------------------------------------------ #
+        "energy levels": {
+            "default": "-De, -De/2, 0, kBT, 5*kBT",
+            "kind": "string",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "ΔE levels:",
+            "help_text": (
+                "The target interaction-energy levels for 'energy-stratified' "
+                "spacing, as a comma-separated list. Each entry is a linear "
+                "expression in the well depth 'De' and the thermal energy 'kBT' "
+                "(both positive, in kJ/mol) -- e.g. '-De, -De/2, 0, kBT, 5*kBT'. "
+                "A negative level is hit twice (repulsive wall and attractive "
+                "tail); a positive level lands on the wall. The innermost profile "
+                "point is always kept so the wall is never starved."
+            ),
+        },
+        "sampling temperature": {
+            "default": 300.0,
+            "kind": "float",
+            "default_units": "K",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Sampling temperature:",
+            "help_text": (
+                "The temperature that sets kBT for the thermal 'energy levels' in "
+                "'energy-stratified' spacing."
+            ),
+        },
+        "orientation weighting": {
+            "default": "reject shallow orientations",
+            "kind": "enum",
+            "default_units": "",
+            "enumeration": (
+                "reject shallow orientations",
+                "downweight by depth",
+                "none",
+            ),
+            "format_string": "",
+            "description": "Weight orientations by well depth:",
+            "help_text": (
+                "How to use the ΔE(R) well depth of each random orientation "
+                "('energy-stratified' spacing, 'two monomer sets' mode only). "
+                "'reject shallow orientations' skips any orientation whose well is "
+                "shallower than the 'minimum well depth'. 'downweight by depth' "
+                "keeps each orientation with probability 1 - 2^(-De/minimum well "
+                "depth), so deeper (more physical) basins are favored. 'none' keeps "
+                "every orientation. Prepared dimers are always kept."
+            ),
+        },
+        "minimum well depth": {
+            "default": 1.0,
+            "kind": "float",
+            "default_units": "kJ/mol",
+            "enumeration": tuple(),
+            "format_string": ".2f",
+            "description": "Minimum well depth:",
+            "help_text": (
+                "For 'reject shallow orientations', the smallest ΔE well depth an "
+                "orientation must have to be kept. For 'downweight by depth', the "
+                "half-weight depth (an orientation with this depth is kept half the "
+                "time)."
             ),
         },
         "separations": {

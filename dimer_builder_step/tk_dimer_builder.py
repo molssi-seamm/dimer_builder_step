@@ -92,6 +92,7 @@ class TkDimerBuilder(seamm.TkNode):
             "input mode",
             "spacing",
             "contact method",
+            "orientation weighting",
             "monomer A configurations",
             "monomer B configurations",
         ):
@@ -116,8 +117,18 @@ class TkDimerBuilder(seamm.TkNode):
     def reset_parameters_frame(self):
         """Lay out the control parameters for the current choices."""
         mode = self["input mode"].get()
-        spacing = self["spacing"].get()
         energy = self["contact method"].get() == "energy"
+
+        # Energy-stratified spacing is only meaningful with an energy engine, so
+        # narrow the 'spacing' choices to exclude it otherwise (prevent the
+        # invalid combination rather than only catching it at run time).
+        spacings = ["geometric", "linear", "explicit"]
+        if energy:
+            spacings.append("energy-stratified")
+        self["spacing"].combobox.config(values=spacings)
+        if self["spacing"].get() not in spacings:
+            self["spacing"].set("geometric")
+        spacing = self["spacing"].get()
 
         frame = self["parameters frame"]
         for slave in frame.grid_slaves():
@@ -162,6 +173,14 @@ class TkDimerBuilder(seamm.TkNode):
             add(key)
         if spacing == "explicit":
             add("separations")
+        elif spacing == "energy-stratified":
+            add("number of separations")  # ΔE(R) profile resolution
+            add("energy levels")
+            add("sampling temperature")
+            if mode == "two monomer sets":
+                add("orientation weighting")
+                if self["orientation weighting"].get() != "none":
+                    add("minimum well depth")
         else:
             add("number of separations")
 

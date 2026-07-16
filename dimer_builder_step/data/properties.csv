@@ -7,3 +7,5 @@ approach phi#DimerBuilder#scan,float,degree,The azimuthal angle of the fixed-to-
 movable alpha#DimerBuilder#scan,float,degree,The first ZYZ Euler angle of the movable group relative to its principal axes,
 movable beta#DimerBuilder#scan,float,degree,The second ZYZ Euler angle of the movable group relative to its principal axes,
 movable gamma#DimerBuilder#scan,float,degree,The third ZYZ Euler angle of the movable group relative to its principal axes,
+interaction energy#DimerBuilder#scan,float,kJ/mol,The surrogate interaction energy ΔE = E_AB − E_A − E_B at this separation (energy-stratified spacing),
+well depth#DimerBuilder#scan,float,kJ/mol,The depth −min(ΔE) of the orientation's interaction-energy well (energy-stratified spacing),

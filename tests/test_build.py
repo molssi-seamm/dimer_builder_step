@@ -75,6 +75,10 @@ def _P(**overrides):
         "spacing": "geometric",
         "number of separations": 8,
         "separations": "",
+        "energy levels": "-De, -De/2, 0, kBT, 5*kBT",
+        "sampling temperature": Q_(300.0, "K"),
+        "orientation weighting": "reject shallow orientations",
+        "minimum well depth": Q_(1.0, "kJ/mol"),
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
@@ -286,6 +290,101 @@ def test_energy_anchor_falls_back_when_no_well():
     assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
     anchor = node._energy_anchor(_Repulsive(), assemble, seed=2.9, P=_P())
     assert anchor == pytest.approx(2.9)
+
+
+# --------------------------------------------------------------------------- #
+# Energy-stratified radial sampling
+# --------------------------------------------------------------------------- #
+
+
+class _LJEngine:
+    """A fake engine with a Lennard-Jones energy in the fragment separation.
+
+    Duck-types the MDIEngine bits used by _energy_profile, giving a real well
+    (depth eps at r = sigma·2^(1/6)) and a ΔE that decays to ~0 at large R.
+    ``eps`` is in hartree, so the profile's kJ/mol well depth is eps·2625.5.
+    """
+
+    def __init__(self, nA, sigma, eps):
+        self.nA = nA
+        self.sigma = sigma
+        self.eps = eps
+        self._xyz = None
+
+    def set_coordinates(self, xyz, units="bohr"):
+        self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+    def energy(self, units="hartree"):
+        a = self._xyz[: self.nA].mean(axis=0)
+        b = self._xyz[self.nA :].mean(axis=0)
+        r = np.linalg.norm(b - a)
+        sr6 = (self.sigma / r) ** 6
+        return float(4.0 * self.eps * (sr6**2 - sr6))
+
+
+def test_kBT_at_300K():
+    node = dimer_builder_step.DimerBuilder()
+    assert node._kBT(_P()) == pytest.approx(2.4943, abs=1.0e-3)
+
+
+def test_energy_levels_parser():
+    node = dimer_builder_step.DimerBuilder()
+    levels = node._energy_levels(20.0, 2.5, _P())
+    assert levels == pytest.approx([-20.0, -10.0, 0.0, 2.5, 12.5])
+
+
+def test_energy_levels_rejects_bad_token():
+    node = dimer_builder_step.DimerBuilder()
+    with pytest.raises(ValueError):
+        node._energy_levels(20.0, 2.5, _P(**{"energy levels": "De, __import__"}))
+
+
+def test_energy_profile_finds_lj_well():
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    ds, dE, d_min, De = node._energy_profile(engine, assemble, seed=3.0, P=_P())
+    # The LJ minimum is at sigma * 2**(1/6) and the well depth is eps (in kJ/mol).
+    assert d_min == pytest.approx(3.0 * 2.0 ** (1.0 / 6.0), abs=0.5)
+    assert De == pytest.approx(0.01 * 2625.4996, rel=0.1)
+    assert dE[-1] == pytest.approx(0.0, abs=1.0e-6)  # far-point reference
+
+
+def test_stratified_separations_hits_levels_twice():
+    """A negative ΔE level is crossed once on the wall and once on the tail."""
+    node = dimer_builder_step.DimerBuilder()
+    ds = np.linspace(2.0, 10.0, 81)
+    De = 20.0
+    d_min = 3.2
+    # A smooth well: -De at d_min, positive (wall) below, -> 0 above.
+    dE = De * (((3.0 / ds) ** 12) - 2.0 * ((3.0 / ds) ** 6))
+    dE = dE / (-dE.min()) * De  # normalize the depth to exactly De
+    d_min = float(ds[np.argmin(dE)])
+    distances = node._stratified_separations(ds, dE, d_min, De, _P())
+    # The wall point, the well bottom, and both roots of -De/2 are present.
+    assert distances[0] == pytest.approx(ds[0])
+    assert any(abs(d - d_min) < 0.2 for d in distances)
+    half = [d for d in distances if d < d_min], [d for d in distances if d > d_min]
+    assert len(half[0]) >= 1 and len(half[1]) >= 1
+
+
+def test_accept_orientation_reject_and_none():
+    node = dimer_builder_step.DimerBuilder()
+    rng = np.random.default_rng(0)
+    P_reject = _P()  # reject shallow, min depth 1.0 kJ/mol
+    assert node._accept_orientation(5.0, P_reject, rng) is True
+    assert node._accept_orientation(0.2, P_reject, rng) is False
+    P_none = _P(**{"orientation weighting": "none"})
+    assert node._accept_orientation(0.0, P_none, rng) is True
+
+
+def test_accept_orientation_downweight_probability():
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"orientation weighting": "downweight by depth"})
+    rng = np.random.default_rng(42)
+    # Deep well (10x the half-weight depth) -> kept nearly always.
+    kept = sum(node._accept_orientation(10.0, P, rng) for _ in range(200))
+    assert kept > 180
 
 
 def test_direction_angles_known():

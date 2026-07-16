@@ -230,9 +230,20 @@ class DimerBuilder(seamm.Node):
         text += (
             f" For each, locate the contact distance using the '{P['contact method']}' "
             f"method, then scan the center-to-center separation from an innermost gap "
-            f"of {P['innermost gap']} out to {P['maximum separation']} with "
-            f"{P['number of separations']} points ({P['spacing']} spacing). The "
-            f"configurations are stored in a new system named '{P['system name']}'."
+            f"of {P['innermost gap']} out to {P['maximum separation']}"
+        )
+        if P["spacing"] == "energy-stratified":
+            text += (
+                f", placing points at the interaction-energy levels "
+                f"'{P['energy levels']}' along the ΔE(R) profile"
+            )
+        else:
+            text += (
+                f" with {P['number of separations']} points ({P['spacing']} spacing)"
+            )
+        text += (
+            f". The configurations are stored in a new system named "
+            f"'{P['system name']}'."
         )
 
         result = self.header + "\n\n" + str(__(text, indent=4 * " "))
@@ -648,8 +659,193 @@ class DimerBuilder(seamm.Node):
                 d_min = float(ds[k] + 0.5 * h * (e0 - e2) / denom)
         return d_min, k, n
 
+    # ----------------------------------------------------------------- #
+    # Energy-stratified radial sampling ('spacing' = 'energy-stratified')
+    # ----------------------------------------------------------------- #
+
+    def _energy_profile(self, engine, assemble, seed, P):
+        """Sample the interaction energy ΔE(R) along the approach axis.
+
+        ΔE is referenced to the far-point asymptote -- the energy at the largest
+        separation, which is E_A + E_B since the fragments no longer interact --
+        so ΔE(R) → 0 as they separate and tracks the intermolecular physics
+        (monomer distortion cancels). This is the surrogate shape the stratified
+        schedule inverts; it need only be qualitatively right.
+
+        Returns ``(ds, dE, d_min, De)``: the center-to-center grid ``ds`` (Å),
+        the interaction energy ``dE`` (kJ/mol) at each point, the location
+        ``d_min`` of the ΔE minimum (Å), and the well depth ``De`` = −min(ΔE)
+        (kJ/mol, 0 if the orientation has no binding well in range).
+
+        The inner bound is auto-extended when needed: the default innermost gap
+        can land right on a deep ΔE minimum, leaving no repulsive wall to sample.
+        If the minimum sits at the innermost point, or the wall there has not
+        risen to the largest positive target level, more points are added inward
+        (down to a floor) so the wall -- and the +kBT / +N·kBT levels -- are
+        always represented.
+        """
+        inner_gap = P["innermost gap"].to("Å").magnitude
+        max_sep = P["maximum separation"].to("Å").magnitude
+        n = max(int(P["number of separations"]), 11)
+
+        d_lo = max(seed + inner_gap, 0.3)
+        d_hi = max_sep if max_sep > d_lo + 0.5 else d_lo + 3.0
+        step = (d_hi - d_lo) / (n - 1)
+        floor = max(seed - 2.0, 1.0)  # keep separations physically sane
+
+        hartree_to_kJmol = Q_(1.0, "hartree").to("kJ/mol").magnitude
+        kBT = self._kBT(P)
+
+        def energy_at(d):
+            engine.set_coordinates(assemble(float(d)), units="Å")
+            return engine.energy(units="hartree")
+
+        ds = list(np.linspace(d_lo, d_hi, n))
+        es = [energy_at(d) for d in ds]
+        e_ref = es[-1]  # far-point asymptote = E_A + E_B (fixed reference)
+
+        for _ in range(20):  # bounded inward extension
+            dE = (np.array(es) - e_ref) * hartree_to_kJmol
+            De = float(-dE.min()) if dE.min() < 0.0 else 0.0
+            targets = self._energy_levels(De, kBT, P)
+            max_pos = max([t for t in targets if t > 0.0], default=0.0)
+            wall_high_enough = dE[0] >= max_pos
+            min_is_interior = int(np.argmin(dE)) > 0
+            if (wall_high_enough and min_is_interior) or ds[0] <= floor:
+                break
+            new_d = max(ds[0] - step, floor)
+            if new_d >= ds[0]:
+                break
+            ds.insert(0, new_d)
+            es.insert(0, energy_at(new_d))
+
+        ds = np.array(ds)
+        dE = (np.array(es) - e_ref) * hartree_to_kJmol
+        k = int(np.argmin(dE))
+        d_min = float(ds[k])
+        De = float(-dE[k]) if dE[k] < 0.0 else 0.0
+        return ds, dE, d_min, De
+
+    def _kBT(self, P):
+        """The thermal energy k_B·T (kJ/mol) for the sampling temperature."""
+        T = P["sampling temperature"].to("K").magnitude
+        return float((Q_(T, "K") * ureg.molar_gas_constant).to("kJ/mol").magnitude)
+
+    def _energy_levels(self, De, kBT, P):
+        """The target ΔE levels (kJ/mol) from the 'energy levels' spec.
+
+        Each comma-separated token is a linear expression in the symbols ``De``
+        (well depth) and ``kBT`` (thermal energy), both in kJ/mol -- e.g.
+        ``-De``, ``-De/2``, ``0``, ``kBT``, ``5*kBT``. Only arithmetic on those
+        two names is allowed (evaluated with no builtins and a whitelisted
+        character set), since this is the user's own flowchart parameter.
+        """
+        import re
+
+        namespace = {"De": float(De), "kBT": float(kBT), "__builtins__": {}}
+        levels = []
+        for token in P["energy levels"].split(","):
+            token = token.strip()
+            if token == "":
+                continue
+            if not re.fullmatch(r"[0-9DekBT.+\-*/() ]+", token):
+                raise ValueError(
+                    f"Invalid ΔE level '{token}': only numbers, the symbols 'De' "
+                    "and 'kBT', and + - * / ( ) are allowed."
+                )
+            try:
+                levels.append(float(eval(token, namespace)))  # noqa: S307
+            except Exception as e:
+                raise ValueError(f"Could not evaluate the ΔE level '{token}': {e}")
+        return levels
+
+    def _stratified_separations(self, ds, dE, d_min, De, P):
+        """Center-to-center distances that hit a spread of ΔE levels.
+
+        Inverts the ΔE(R) profile: for each target level, every R at which
+        ΔE(R) crosses it is found by linear interpolation between grid points
+        (a negative level is crossed twice -- once on the repulsive wall, once
+        on the attractive tail -- and both are kept). The innermost grid point
+        is always included so the repulsive wall is never starved, and the well
+        bottom is included whenever a binding well exists. Levels deeper than
+        the well simply have no crossing and are skipped.
+        """
+        kBT = self._kBT(P)
+        targets = self._energy_levels(De, kBT, P)
+
+        distances = [float(ds[0])]  # keep the innermost point (the wall)
+        if De > 0.0:
+            distances.append(float(d_min))  # keep the well bottom
+
+        for t in targets:
+            g = dE - t
+            for i in range(len(ds) - 1):
+                if g[i] == 0.0:
+                    distances.append(float(ds[i]))
+                if g[i] * g[i + 1] < 0.0:  # a crossing lies in this interval
+                    f = g[i] / (g[i] - g[i + 1])
+                    distances.append(float(ds[i] + f * (ds[i + 1] - ds[i])))
+            if g[-1] == 0.0:
+                distances.append(float(ds[-1]))
+
+        distances = np.clip(np.array(distances, dtype=float), 0.1, None)
+        return np.unique(np.round(distances, 4))
+
+    @staticmethod
+    def _make_interpolator(ds, dE):
+        """A function mapping a distance (Å) to its interpolated ΔE (kJ/mol)."""
+
+        def dE_at(d):
+            return float(np.interp(d, ds, dE))
+
+        return dE_at
+
+    def _accept_orientation(self, De, P, rng):
+        """Whether to keep an orientation given its ΔE well depth (kJ/mol).
+
+        Applies the 'orientation weighting' rule; a purely repulsive/glancing
+        orientation (De == 0) is always shallow. 'downweight by depth' needs the
+        random generator; without one it degrades to the reject rule.
+        """
+        mode = P["orientation weighting"]
+        min_depth = P["minimum well depth"].to("kJ/mol").magnitude
+        if mode == "none":
+            return True
+        if mode == "downweight by depth" and rng is not None and min_depth > 0.0:
+            keep_probability = 1.0 - 2.0 ** (-De / min_depth)
+            return bool(rng.random() < keep_probability)
+        return De >= min_depth  # 'reject shallow orientations' (and the fallback)
+
+    def _plan_scan(self, engine, assemble, contact, P, rng=None, weight=False):
+        """Plan one orientation's radial scan.
+
+        Returns ``(distances, gap_reference, dE_at, De)`` -- the center-to-center
+        distances to place, the reference distance for the reported 'gap' (the
+        ΔE minimum for energy-stratified/energy scans, else the vdW contact), a
+        function giving ΔE at a distance (or ``None``), and the well depth (or
+        ``None``). Returns ``None`` when the orientation is rejected by the
+        weighting rule.
+        """
+        if engine is not None and P["spacing"] == "energy-stratified":
+            ds, dE, d_min, De = self._energy_profile(engine, assemble, contact, P)
+            if weight and not self._accept_orientation(De, P, rng):
+                return None
+            distances = self._stratified_separations(ds, dE, d_min, De, P)
+            return distances, d_min, self._make_interpolator(ds, dE), De
+
+        if engine is not None:
+            contact = self._energy_anchor(engine, assemble, contact, P)
+        return self._separation_schedule(contact, P), contact, None, None
+
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
+        # Backstop for hand-edited/scripted flowcharts (the GUI prevents this):
+        # energy-stratified spacing has no meaning without an energy engine.
+        if P["spacing"] == "energy-stratified" and P["contact method"] != "energy":
+            raise ValueError(
+                "'energy-stratified' spacing requires the 'energy' contact method "
+                "(an MDI engine supplied by a Model Chemistry step)."
+            )
         if P["input mode"] == "two monomer sets":
             return self._build_from_monomers(system_db, P, rng)
         else:
@@ -732,28 +928,33 @@ class DimerBuilder(seamm.Node):
                 alpha, beta, gamma = self._euler_zyz(R_B)
 
                 contact = self._contact_distance(xyzA, A_radii, xyzB, B_radii, axis)
-                if engine is not None:
 
-                    def assemble(d, xyzA=xyzA, xyzB=xyzB, axis=axis):
-                        return np.vstack([xyzA, xyzB + axis * d])
+                def assemble(d, xyzA=xyzA, xyzB=xyzB, axis=axis):
+                    return np.vstack([xyzA, xyzB + axis * d])
 
-                    contact = self._energy_anchor(engine, assemble, contact, P)
+                plan = self._plan_scan(
+                    engine, assemble, contact, P, rng=rng, weight=True
+                )
+                if plan is None:
+                    continue  # orientation rejected by the weighting rule
+                distances, gap_ref, dE_at, De = plan
 
-                for point, d in enumerate(
-                    self._separation_schedule(contact, P), start=1
-                ):
-                    coordinates = np.vstack([xyzA, xyzB + axis * d])
+                for point, d in enumerate(distances, start=1):
+                    coordinates = assemble(d)
                     conf = base if count == 0 else dimer_sys.copy_configuration(base)
                     conf.atoms.set_coordinates(coordinates, fractionals=False)
                     geometry = {
                         "separation": d,
-                        "gap": d - contact,
+                        "gap": d - gap_ref,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
                         "beta": beta,
                         "gamma": gamma,
                     }
+                    if dE_at is not None:
+                        geometry["interaction_energy"] = dE_at(d)
+                        geometry["well_depth"] = De
                     self._name_and_tag(
                         conf, P, count + 1, orientation, point, geometry, save_props
                     )
@@ -863,23 +1064,27 @@ class DimerBuilder(seamm.Node):
                     c[movable_idx] = movable_centered + axis * d
                     return c
 
-                if engine is not None:
-                    contact = self._energy_anchor(engine, assemble, contact, P)
+                # Prepared dimers are user-provided orientations, so they are
+                # always kept (weight=False); only the radial schedule is planned.
+                distances, gap_ref, dE_at, De = self._plan_scan(
+                    engine, assemble, contact, P
+                )
 
-                for point, d in enumerate(
-                    self._separation_schedule(contact, P), start=1
-                ):
+                for point, d in enumerate(distances, start=1):
                     conf = base if count == 0 else out_sys.copy_configuration(base)
                     conf.atoms.set_coordinates(assemble(d), fractionals=False)
                     geometry = {
                         "separation": d,
-                        "gap": d - contact,
+                        "gap": d - gap_ref,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
                         "beta": beta,
                         "gamma": gamma,
                     }
+                    if dE_at is not None:
+                        geometry["interaction_energy"] = dE_at(d)
+                        geometry["well_depth"] = De
                     self._name_and_tag(
                         conf, P, count + 1, orientation, point, geometry, save_props
                     )
@@ -937,6 +1142,16 @@ class DimerBuilder(seamm.Node):
             self._put_property(conf, f"movable alpha{p}", geometry["alpha"], "degree")
             self._put_property(conf, f"movable beta{p}", geometry["beta"], "degree")
             self._put_property(conf, f"movable gamma{p}", geometry["gamma"], "degree")
+            if "interaction_energy" in geometry:
+                self._put_property(
+                    conf,
+                    f"interaction energy{p}",
+                    geometry["interaction_energy"],
+                    "kJ/mol",
+                )
+                self._put_property(
+                    conf, f"well depth{p}", geometry["well_depth"], "kJ/mol"
+                )
 
     def _put_property(self, conf, name, value, units, _type="float"):
         """Store a property on a configuration (defining it if not registered).
