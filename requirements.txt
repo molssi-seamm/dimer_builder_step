@@ -5,3 +5,4 @@ seamm_mdi
 molsystem
 mendeleev
 numpy
+plotly

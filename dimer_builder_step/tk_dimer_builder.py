@@ -188,6 +188,7 @@ class TkDimerBuilder(seamm.TkNode):
             "system name",
             "configuration name",
             "save scan variables as properties",
+            "analysis plots",
         ):
             add(key)
 

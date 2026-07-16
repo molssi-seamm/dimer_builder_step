@@ -82,6 +82,7 @@ def _P(**overrides):
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
+        "analysis plots": "none",
     }
     P.update(overrides)
     return P
@@ -385,6 +386,74 @@ def test_accept_orientation_downweight_probability():
     # Deep well (10x the half-weight depth) -> kept nearly always.
     kept = sum(node._accept_orientation(10.0, P, rng) for _ in range(200))
     assert kept > 180
+
+
+# --------------------------------------------------------------------------- #
+# Sampling diagnostics (vendored dimer_analysis module, plotly)
+# --------------------------------------------------------------------------- #
+
+
+def test_dimer_analysis_metrics_and_summary():
+    from dimer_builder_step import dimer_analysis
+
+    rng = np.random.default_rng(0)
+    ensemble = []
+    for i in range(20):
+        z = 3.0 + 0.1 * i
+        ensemble.append(
+            dimer_analysis.Dimer(
+                symbols_A=["O", "H", "H"],
+                xyz_A=np.array(
+                    [[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]]
+                ),
+                symbols_B=["O", "H", "H"],
+                xyz_B=np.array([[0.0, 0.0, z], [0.76, 0.59, z], [-0.76, 0.59, z]]),
+                energy=float(rng.normal()),
+                separation=z,
+                orientation=1,
+            )
+        )
+    metrics = dimer_analysis.compute_metrics(ensemble)
+    s = dimer_analysis.summarize(metrics)
+    assert s["n"] == 20
+    assert metrics.has_energy
+    assert "energy_flatness" in s
+
+
+def test_build_collects_ensemble_when_requested(db_two_waters):
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"analysis plots": "basic"})
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(1))
+
+    ensemble = stats["ensemble"]
+    assert len(ensemble) == stats["n_configurations"]
+    d = ensemble[0]
+    assert d.symbols_A == ["O", "H", "H"] and d.symbols_B == ["O", "H", "H"]
+    assert d.xyz_A.shape == (3, 3) and d.xyz_B.shape == (3, 3)
+    # van der Waals contact method -> no interaction energies collected.
+    assert d.energy is None
+
+
+def test_build_skips_ensemble_when_none(db_two_waters):
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(db_two_waters, _P(), np.random.default_rng(1))
+    assert stats["ensemble"] == []
+
+
+def test_make_dashboard_returns_plotly_figure(db_two_waters):
+    import json
+
+    from dimer_builder_step import dimer_analysis
+
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"analysis plots": "basic"})
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(2))
+    metrics = dimer_analysis.compute_metrics(stats["ensemble"])
+    figure = dimer_analysis.make_dashboard(metrics, title="test")
+    # A native plotly go.Figure that serializes to the SEAMM .graph format.
+    assert len(figure.data) > 0
+    payload = json.loads(figure.to_json())
+    assert "data" in payload and "layout" in payload
 
 
 def test_direction_angles_known():

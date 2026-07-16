@@ -161,8 +161,26 @@ class DimerBuilder(seamm.Node):
         super().create_parser(name=parser_name)
 
         if not parser_exists:
-            # Any options for the dimer builder itself can be added here.
-            pass
+            parser.add_argument(
+                parser_name,
+                "--graph-formats",
+                default=tuple(),
+                choices=("html", "png", "jpeg", "webp", "svg", "pdf"),
+                nargs="+",
+                help="extra formats to write for the sampling-diagnostics graph",
+            )
+            parser.add_argument(
+                parser_name,
+                "--graph-width",
+                default=1024,
+                help="width of graphs in formats that support it, defaults to 1024",
+            )
+            parser.add_argument(
+                parser_name,
+                "--graph-height",
+                default=1024,
+                help="height of graphs in formats that support it, defaults to 1024",
+            )
 
         # Now need to walk through the steps in the subflowchart...
         self.subflowchart.reset_visited()
@@ -331,7 +349,130 @@ class DimerBuilder(seamm.Node):
             )
             printer.important(__(text, indent=4 * " "))
 
+        level = P.get("analysis plots", "none") if P else "none"
+        ensemble = stats.get("ensemble")
+        if level != "none" and ensemble:
+            self._run_diagnostics(ensemble, stats.get("system", "dimers"))
+
         printer.important("")
+
+    # ----------------------------------------------------------------- #
+    # Sampling diagnostics (vendored dimer_analysis module)
+    # ----------------------------------------------------------------- #
+
+    @staticmethod
+    def _collect_ensemble(P):
+        """Whether the build should accumulate the ensemble for diagnostics."""
+        return (P.get("analysis plots", "none") if P else "none") != "none"
+
+    @staticmethod
+    def _make_dimer_record(symbols_A, xyz_A, symbols_B, xyz_B, geometry, label):
+        """Build a ``dimer_analysis.Dimer`` for one generated configuration.
+
+        The interaction energy (kJ/mol, ΔE = E_dimer − (E_A + E_B), attractive
+        negative) is carried only when it was computed (the 'energy' contact
+        method); the diagnostics drop the energy panels when it is absent.
+        """
+        from dimer_builder_step import dimer_analysis
+
+        return dimer_analysis.Dimer(
+            symbols_A=list(symbols_A),
+            xyz_A=np.asarray(xyz_A, dtype=float),
+            symbols_B=list(symbols_B),
+            xyz_B=np.asarray(xyz_B, dtype=float),
+            energy=geometry.get("interaction_energy"),
+            separation=geometry.get("separation"),
+            orientation=geometry.get("orientation"),
+            label=label,
+        )
+
+    def _run_diagnostics(self, ensemble, title):
+        """Print the scalar summary and write the diagnostics dashboard.
+
+        Uses the vendored, framework-free ``dimer_analysis`` module: the metrics
+        are numpy-only and ``make_dashboard`` returns a plotly ``go.Figure``,
+        which is written as a SEAMM ``.graph`` (plotly JSON) for the Dashboard,
+        plus any extra image formats requested via ``graph-formats`` in
+        seamm.ini. Diagnostics are best-effort and never abort the run.
+        """
+        from dimer_builder_step import dimer_analysis
+
+        try:
+            metrics = dimer_analysis.compute_metrics(ensemble)
+            s = dimer_analysis.summarize(metrics)
+        except Exception as e:
+            printer.important(
+                __(f"Could not compute the sampling diagnostics: {e}", indent=4 * " ")
+            )
+            return
+
+        text = (
+            f"Sampling diagnostics ({s['n']} dimers): COM separation "
+            f"{s['R_min']:.2f}-{s['R_max']:.2f} Å, closest-contact median "
+            f"{s['min_contact_median']:.2f} Å, approach concentration "
+            f"{s['approach_concentration']:.2f} (0 = isotropic)."
+        )
+        printer.important(__(text, indent=4 * " "))
+        if "energy_flatness" in s:
+            text = (
+                f"ΔE from {s['energy_min']:.1f} kJ/mol, "
+                f"{100 * s['energy_frac_attractive']:.0f}% attractive, "
+                f"energy-flatness CV {s['energy_flatness']:.2f} "
+                f"(0 = perfectly flat-in-energy)."
+            )
+            printer.important(__(text, indent=4 * " "))
+
+        try:
+            figure = dimer_analysis.make_dashboard(metrics, title=str(title))
+        except Exception as e:  # plotting is best-effort, never fatal
+            printer.important(
+                __(f"Could not build the diagnostics dashboard: {e}", indent=4 * " ")
+            )
+            return
+
+        import os
+
+        os.makedirs(self.directory, exist_ok=True)
+        base = os.path.join(self.directory, "dimer_sampling")
+        # The native SEAMM graph is plotly JSON ({data, layout}); the Dashboard
+        # renders it interactively.
+        with open(base + ".graph", "w") as fd:
+            fd.write(figure.to_json())
+        printer.important(
+            __("Wrote the sampling dashboard 'dimer_sampling.graph'.", indent=4 * " ")
+        )
+        self._write_extra_graph_formats(figure, base)
+
+    def _write_extra_graph_formats(self, figure, base):
+        """Write the extra image formats requested by 'graph-formats' in seamm.ini.
+
+        Mirrors the LAMMPS step. Each format is best-effort: a missing 'kaleido'
+        (needed for static images) is reported once, not fatal.
+        """
+        import shlex
+
+        options = getattr(self, "options", {}) or {}
+        formats = options.get("graph_formats", ())
+        if isinstance(formats, str):
+            formats = shlex.split(formats)
+        if not formats:
+            return
+        width = int(options.get("graph_width", 1024))
+        height = int(options.get("graph_height", 1024))
+        for fmt in formats:
+            path = f"{base}.{fmt}"
+            try:
+                if fmt in ("html", "htm"):
+                    figure.write_html(path)
+                else:
+                    figure.write_image(path, format=fmt, width=width, height=height)
+            except Exception as e:
+                printer.important(
+                    __(
+                        f"Could not write the diagnostics graph as '{fmt}': {e}",
+                        indent=4 * " ",
+                    )
+                )
 
     # ----------------------------------------------------------------- #
     # Implementation helpers
@@ -884,6 +1025,8 @@ class DimerBuilder(seamm.Node):
 
         A_radii = vdw_radii(A0.atoms.symbols)
         B_radii = vdw_radii(B0.atoms.symbols)
+        symbols_A = list(A0.atoms.symbols)
+        symbols_B = list(B0.atoms.symbols)
 
         engine = None
         if P["contact method"] == "energy":
@@ -892,6 +1035,8 @@ class DimerBuilder(seamm.Node):
             engine = self._open_energy_engine(elements, charge, 1)
 
         save_props = self._truthy(P["save scan variables as properties"])
+        collect = self._collect_ensemble(P)
+        ensemble = []
         count = 0
         separations = []
         try:
@@ -946,6 +1091,7 @@ class DimerBuilder(seamm.Node):
                     geometry = {
                         "separation": d,
                         "gap": d - gap_ref,
+                        "orientation": orientation,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
@@ -959,6 +1105,17 @@ class DimerBuilder(seamm.Node):
                         conf, P, count + 1, orientation, point, geometry, save_props
                     )
                     self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
+                    if collect:
+                        ensemble.append(
+                            self._make_dimer_record(
+                                symbols_A,
+                                xyzA,
+                                symbols_B,
+                                xyzB + axis * d,
+                                geometry,
+                                conf.name,
+                            )
+                        )
                     separations.append(d)
                     count += 1
         finally:
@@ -966,6 +1123,7 @@ class DimerBuilder(seamm.Node):
                 engine.close()
 
         stats = self._stats(name, P["number of orientations"], separations)
+        stats["ensemble"] = ensemble
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls
@@ -1006,6 +1164,9 @@ class DimerBuilder(seamm.Node):
         atom_ids = base.atoms.ids
         fixed_ids = [atom_ids[i] for i in fixed_idx]
         movable_ids = [atom_ids[i] for i in movable_idx]
+        all_symbols = list(d0.atoms.symbols)
+        symbols_fixed = [all_symbols[i] for i in fixed_idx]
+        symbols_movable = [all_symbols[i] for i in movable_idx]
 
         engine = None
         if P["contact method"] == "energy":
@@ -1014,6 +1175,8 @@ class DimerBuilder(seamm.Node):
             )
 
         save_props = self._truthy(P["save scan variables as properties"])
+        collect = self._collect_ensemble(P)
+        ensemble = []
         count = 0
         separations = []
         orientation = 0
@@ -1071,11 +1234,13 @@ class DimerBuilder(seamm.Node):
                 )
 
                 for point, d in enumerate(distances, start=1):
+                    coordinates = assemble(d)
                     conf = base if count == 0 else out_sys.copy_configuration(base)
-                    conf.atoms.set_coordinates(assemble(d), fractionals=False)
+                    conf.atoms.set_coordinates(coordinates, fractionals=False)
                     geometry = {
                         "separation": d,
                         "gap": d - gap_ref,
+                        "orientation": orientation,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
@@ -1089,6 +1254,17 @@ class DimerBuilder(seamm.Node):
                         conf, P, count + 1, orientation, point, geometry, save_props
                     )
                     self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
+                    if collect:
+                        ensemble.append(
+                            self._make_dimer_record(
+                                symbols_fixed,
+                                coordinates[fixed_idx],
+                                symbols_movable,
+                                coordinates[movable_idx],
+                                geometry,
+                                conf.name,
+                            )
+                        )
                     separations.append(d)
                     count += 1
         finally:
@@ -1096,6 +1272,7 @@ class DimerBuilder(seamm.Node):
                 engine.close()
 
         stats = self._stats(name, orientation, separations)
+        stats["ensemble"] = ensemble
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls

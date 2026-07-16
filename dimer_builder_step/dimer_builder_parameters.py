@@ -354,6 +354,24 @@ class DimerBuilderParameters(seamm.Parameters):
                 "each configuration as properties, for downstream filtering."
             ),
         },
+        "analysis plots": {
+            "default": "basic",
+            "kind": "enum",
+            "default_units": "",
+            "enumeration": ("none", "basic", "detailed"),
+            "format_string": "",
+            "description": "Sampling diagnostics:",
+            "help_text": (
+                "Distribution diagnostics for the generated ensemble (separation "
+                "coverage, contact distances, approach direction, relative "
+                "orientation, and -- if interaction energies were computed -- the "
+                "ΔE distribution and flatness). 'none' skips them; 'basic' prints "
+                "the scalar summary and writes an interactive 'dimer_sampling.graph' "
+                "for the Dashboard (plus any extra formats set by graph-formats in "
+                "seamm.ini). 'detailed' is reserved for a future SOAP/UMAP embedding "
+                "panel and currently behaves like 'basic'."
+            ),
+        },
         "results": {
             "default": {},
             "kind": "dictionary",
