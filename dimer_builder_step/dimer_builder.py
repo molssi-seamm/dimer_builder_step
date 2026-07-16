@@ -352,7 +352,7 @@ class DimerBuilder(seamm.Node):
         level = P.get("analysis plots", "none") if P else "none"
         ensemble = stats.get("ensemble")
         if level != "none" and ensemble:
-            self._run_diagnostics(ensemble, stats.get("system", "dimers"))
+            self._run_diagnostics(ensemble, level, stats.get("system", "dimers"))
 
         printer.important("")
 
@@ -386,14 +386,16 @@ class DimerBuilder(seamm.Node):
             label=label,
         )
 
-    def _run_diagnostics(self, ensemble, title):
-        """Print the scalar summary and write the diagnostics dashboard.
+    def _run_diagnostics(self, ensemble, level, title):
+        """Print the scalar summary and write the diagnostics graph(s).
 
         Uses the vendored, framework-free ``dimer_analysis`` module: the metrics
-        are numpy-only and ``make_dashboard`` returns a plotly ``go.Figure``,
-        which is written as a SEAMM ``.graph`` (plotly JSON) for the Dashboard,
-        plus any extra image formats requested via ``graph-formats`` in
-        seamm.ini. Diagnostics are best-effort and never abort the run.
+        are numpy-only and the plotting helpers return plotly ``go.Figure``
+        objects, written as SEAMM ``.graph`` files (plotly JSON) for the
+        Dashboard, plus any extra image formats requested via ``graph-formats``
+        in seamm.ini. 'basic' writes the combined dashboard; 'detailed' also
+        writes each panel as its own graph for closer inspection. Diagnostics
+        are best-effort and never abort the run.
         """
         from dimer_builder_step import dimer_analysis
 
@@ -422,6 +424,12 @@ class DimerBuilder(seamm.Node):
             )
             printer.important(__(text, indent=4 * " "))
 
+        import os
+
+        os.makedirs(self.directory, exist_ok=True)
+
+        # The combined dashboard (always). A .graph is plotly JSON ({data,
+        # layout}); the Dashboard renders it interactively.
         try:
             figure = dimer_analysis.make_dashboard(metrics, title=str(title))
         except Exception as e:  # plotting is best-effort, never fatal
@@ -429,19 +437,43 @@ class DimerBuilder(seamm.Node):
                 __(f"Could not build the diagnostics dashboard: {e}", indent=4 * " ")
             )
             return
-
-        import os
-
-        os.makedirs(self.directory, exist_ok=True)
         base = os.path.join(self.directory, "dimer_sampling")
-        # The native SEAMM graph is plotly JSON ({data, layout}); the Dashboard
-        # renders it interactively.
         with open(base + ".graph", "w") as fd:
             fd.write(figure.to_json())
-        printer.important(
-            __("Wrote the sampling dashboard 'dimer_sampling.graph'.", indent=4 * " ")
-        )
         self._write_extra_graph_formats(figure, base)
+
+        if level != "detailed":
+            printer.important(
+                __(
+                    "Wrote the sampling dashboard 'dimer_sampling.graph'.",
+                    indent=4 * " ",
+                )
+            )
+            return
+
+        # 'detailed': each panel as its own graph, from the same trace builders
+        # as the dashboard (so combined and separated views never diverge).
+        try:
+            panels = dimer_analysis.make_panels(metrics)
+        except Exception as e:
+            printer.important(
+                __(f"Could not build the individual panels: {e}", indent=4 * " ")
+            )
+            panels = {}
+        for name, panel in panels.items():
+            if panel is None:
+                continue
+            panel_base = f"{base}_{name}"
+            with open(panel_base + ".graph", "w") as fd:
+                fd.write(panel.to_json())
+            self._write_extra_graph_formats(panel, panel_base)
+        printer.important(
+            __(
+                f"Wrote the sampling dashboard and {len(panels)} panel graphs "
+                "('dimer_sampling*.graph').",
+                indent=4 * " ",
+            )
+        )
 
     def _write_extra_graph_formats(self, figure, base):
         """Write the extra image formats requested by 'graph-formats' in seamm.ini.

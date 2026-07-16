@@ -470,6 +470,41 @@ def test_make_dashboard_returns_plotly_figure(db_two_waters):
     assert "data" in payload and "layout" in payload
 
 
+def test_make_panels_individual_figures(db_two_waters):
+    from dimer_builder_step import dimer_analysis
+
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(
+        db_two_waters, _P(**{"analysis plots": "detailed"}), np.random.default_rng(2)
+    )
+    metrics = dimer_analysis.compute_metrics(stats["ensemble"])
+    panels = dimer_analysis.make_panels(metrics)
+    # vdW contact -> no energies -> the four geometry panels, no energy panels.
+    assert set(panels) == {"separation", "contact", "approach", "orientation"}
+    assert all(len(fig.data) > 0 for fig in panels.values())
+
+
+def test_detailed_writes_panel_graphs(db_two_waters, tmp_path):
+    from unittest import mock
+
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(
+        db_two_waters, _P(**{"analysis plots": "detailed"}), np.random.default_rng(2)
+    )
+    # 'directory' is a read-only property (flowchart root + node id); patch it.
+    with mock.patch.object(
+        type(node),
+        "directory",
+        new_callable=mock.PropertyMock,
+        return_value=str(tmp_path),
+    ):
+        node._run_diagnostics(stats["ensemble"], "detailed", stats["system"])
+    written = {p.name for p in tmp_path.glob("dimer_sampling*.graph")}
+    assert "dimer_sampling.graph" in written  # the combined dashboard
+    assert "dimer_sampling_separation.graph" in written  # a per-panel graph
+    assert "dimer_sampling_contact.graph" in written
+
+
 def test_direction_angles_known():
     node = dimer_builder_step.DimerBuilder()
     assert node._direction_angles([0.0, 0.0, 1.0]) == (0.0, 0.0)

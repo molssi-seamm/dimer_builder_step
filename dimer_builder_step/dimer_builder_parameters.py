@@ -367,11 +367,12 @@ class DimerBuilderParameters(seamm.Parameters):
                 "Distribution diagnostics for the generated ensemble (separation "
                 "coverage, contact distances, approach direction, relative "
                 "orientation, and -- if interaction energies were computed -- the "
-                "ΔE distribution and flatness). 'none' skips them; 'basic' prints "
-                "the scalar summary and writes an interactive 'dimer_sampling.graph' "
-                "for the Dashboard (plus any extra formats set by graph-formats in "
-                "seamm.ini). 'detailed' is reserved for a future SOAP/UMAP embedding "
-                "panel and currently behaves like 'basic'."
+                "ΔE distribution and flatness). 'none' skips them. 'basic' prints "
+                "the scalar summary and writes the combined interactive "
+                "'dimer_sampling.graph' for the Dashboard. 'detailed' additionally "
+                "writes each panel as its own 'dimer_sampling_<panel>.graph' for "
+                "closer inspection. Any extra image formats (png/pdf/svg/...) are "
+                "controlled by graph-formats in seamm.ini."
             ),
         },
         "results": {

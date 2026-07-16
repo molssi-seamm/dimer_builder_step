@@ -10,10 +10,13 @@ Pure, framework-free analysis intended to be shared by two consumers:
 Keeping the math in one place means the in-step charts and the offline analysis
 never drift.  The module depends only on numpy for the metrics; **plotly** is
 imported lazily inside ``make_dashboard``, so ``compute_metrics`` works in a
-minimal / headless environment.  ``make_dashboard`` returns a plotly
-``go.Figure`` -- SEAMM uses plotly throughout, so the step can write it with the
-same machinery it uses for every other graph (and the offline notebook can
-``write_image`` / ``write_html`` the identical figure).
+minimal / headless environment.  ``make_dashboard`` returns the combined panel
+as one plotly ``go.Figure``; ``make_panels`` returns the *same* panels as
+individual ``go.Figure`` objects (a dict keyed by panel name) for callers that
+want each chart on its own -- both share one set of trace builders, so the
+combined and separated views can never drift.  SEAMM uses plotly throughout, so
+the step writes any of these with the same machinery it uses for every other
+graph (and the offline notebook can ``write_image`` / ``write_html`` them).
 
 Design notes
 ------------
@@ -45,6 +48,13 @@ __all__ = [
     "approach_concentration",
     "summarize",
     "make_dashboard",
+    "make_panels",
+    "panel_separation",
+    "panel_contact",
+    "panel_approach",
+    "panel_orientation",
+    "panel_energy",
+    "panel_energy_vs_R",
 ]
 
 # --------------------------------------------------------------------------- #
@@ -308,46 +318,29 @@ _INK, _CC, _DFT, _OK, _BENCH, _MUTED = (
 )
 
 
-def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
-    """Assemble the diagnostic panel as a single plotly ``go.Figure``.
+def _axis_id(row, col, ncols):
+    """Axis reference (e.g. 'x3') for the subplot at (row, col) in an ncols grid.
+    Panel (1,1) is axis 'x'."""
+    idx = (row - 1) * ncols + col
+    return "x" if idx == 1 else f"x{idx}"
 
-    Panels (energy panels dropped automatically when no energies are present):
-      separation histogram | contact distances | approach-direction sphere map |
-      relative-orientation histogram | energy histogram + flatness | ΔE vs R.
-    """
+
+# --- per-panel trace builders: the single source shared by the combined ----- #
+#     dashboard and the standalone panels, so the two views cannot drift.      #
+def _add_separation(fig, m, row, col):
     import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-
-    m = metrics
-    s = summarize(m)
-
-    if m.has_energy:
-        _, _, flat = energy_histogram(m.energy[np.isfinite(m.energy)])
-        titles = [
-            "Separation coverage", "Contact distribution",
-            "Approach direction (A frame)", "Relative orientation",
-            f"Energy distribution (flatness CV = {flat:.2f})",
-            "Binding-curve envelope",
-        ]
-        fig = make_subplots(rows=2, cols=3, subplot_titles=titles,
-                            horizontal_spacing=0.085, vertical_spacing=0.16)
-    else:
-        titles = ["Separation coverage", "Contact distribution",
-                  "Approach direction (A frame)", "Relative orientation"]
-        fig = make_subplots(rows=1, cols=4, subplot_titles=titles,
-                            horizontal_spacing=0.06)
-
-    # --- (1,1) separation -------------------------------------------------- #
     R = m.R[np.isfinite(m.R)]
     fig.add_trace(go.Histogram(x=R, nbinsx=24, marker_color=_CC,
-                               showlegend=False), row=1, col=1)
-    fig.update_xaxes(title_text="COM separation R (Å)", row=1, col=1)
-    fig.update_yaxes(title_text="count", row=1, col=1)
+                               showlegend=False), row=row, col=col)
+    fig.update_xaxes(title_text="COM separation R (Å)", row=row, col=col)
+    fig.update_yaxes(title_text="count", row=row, col=col)
 
-    # --- (1,2) contact distances ------------------------------------------- #
+
+def _add_contact(fig, m, row, col):
+    import plotly.graph_objects as go
     mc = m.min_contact[np.isfinite(m.min_contact)]
     fig.add_trace(go.Histogram(x=mc, nbinsx=24, marker_color=_DFT, opacity=0.5,
-                               name="closest contact"), row=1, col=2)
+                               name="closest contact"), row=row, col=col)
     if m.contact_pairs:
         top = sorted(m.contact_pairs.items(), key=lambda kv: -kv[1].size)[:3]
         lo = min(mc.min(), min(arr.min() for _, arr in top))
@@ -358,90 +351,141 @@ def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
             counts, _ = np.histogram(arr, edges)
             fig.add_trace(go.Scatter(x=centers, y=counts, mode="lines",
                                      line_shape="hvh", name=f"{a}–{b} (all)"),
-                          row=1, col=2)
-    fig.update_xaxes(title_text="intermolecular distance (Å)", row=1, col=2)
-    fig.update_yaxes(title_text="count", row=1, col=2)
+                          row=row, col=col)
+    fig.update_xaxes(title_text="intermolecular distance (Å)", row=row, col=col)
+    fig.update_yaxes(title_text="count", row=row, col=col)
 
-    # --- (1,3) approach-direction sphere map (manual Mollweide) ------------ #
+
+def _add_approach(fig, m, row, col, ncols, colorbar=None):
+    import plotly.graph_objects as go
     good = np.isfinite(m.approach_lonlat).all(axis=1)
     mx, my = _mollweide_xy(m.approach_lonlat[good, 0], m.approach_lonlat[good, 1])
-    # bounding ellipse + a couple of graticule meridians for orientation
+    # bounding ellipse + a few graticule parallels for orientation
     u = np.linspace(0, 2 * np.pi, 181)
     fig.add_trace(go.Scatter(x=2 * np.cos(u), y=np.sin(u), mode="lines",
                              line=dict(color=_MUTED, width=1), hoverinfo="skip",
-                             showlegend=False), row=1, col=3)
+                             showlegend=False), row=row, col=col)
     for lat0 in (-np.pi / 4, 0.0, np.pi / 4):
         gl = np.linspace(-np.pi, np.pi, 121)
         gx, gy = _mollweide_xy(gl, np.full_like(gl, lat0))
         fig.add_trace(go.Scatter(x=gx, y=gy, mode="lines",
                                  line=dict(color=_MUTED, width=0.4),
                                  hoverinfo="skip", showlegend=False),
-                      row=1, col=3)
-    sph_col = 3
+                      row=row, col=col)
     if m.has_energy:
         e = m.energy[good]
         marker = dict(size=5, color=e, colorscale="Viridis", showscale=True,
-                      colorbar=dict(title="ΔE", len=0.42, y=0.80, x=1.005,
-                                    thickness=12))
+                      colorbar=colorbar or dict(title="ΔE", thickness=12))
     else:
         marker = dict(size=4, color=_CC, opacity=0.6)
     fig.add_trace(go.Scatter(x=mx, y=my, mode="markers", marker=marker,
-                             hoverinfo="skip", showlegend=False),
-                  row=1, col=sph_col)
-    # equal aspect, no ticks -- it's a map, not a plot.  Panel (1,3) is axis x3
-    # in both the 2x3 and 1x4 layouts.
-    fig.update_xaxes(visible=False, range=[-2.15, 2.15], row=1, col=3)
-    fig.update_yaxes(visible=False, range=[-1.1, 1.1], scaleanchor="x3",
-                     scaleratio=1, row=1, col=3)
+                             hoverinfo="skip", showlegend=False), row=row, col=col)
+    # equal aspect, no ticks -- it's a map, not a plot
+    fig.update_xaxes(visible=False, range=[-2.15, 2.15], row=row, col=col)
+    fig.update_yaxes(visible=False, range=[-1.1, 1.1],
+                     scaleanchor=_axis_id(row, col, ncols), scaleratio=1,
+                     row=row, col=col)
 
-    # --- relative orientation ---------------------------------------------- #
-    ori_rc = (2, 1) if m.has_energy else (1, 4)
+
+def _add_orientation(fig, m, row, col):
+    import plotly.graph_objects as go
     oa = m.orient_angle[np.isfinite(m.orient_angle)]
     if oa.size:
         fig.add_trace(go.Histogram(x=oa, xbins=dict(start=0, end=90, size=5),
                                    marker_color=_OK, showlegend=False),
-                      row=ori_rc[0], col=ori_rc[1])
+                      row=row, col=col)
         fig.update_xaxes(title_text="axis–axis angle (deg)", range=[0, 90],
-                         row=ori_rc[0], col=ori_rc[1])
+                         row=row, col=col)
     else:
         fig.add_annotation(text="orientation n/a<br>(monatomic fragment)",
                            showarrow=False, font=dict(color=_MUTED),
                            xref="x domain", yref="y domain", x=0.5, y=0.5,
-                           row=ori_rc[0], col=ori_rc[1])
-    fig.update_yaxes(title_text="count", row=ori_rc[0], col=ori_rc[1])
+                           row=row, col=col)
+    fig.update_yaxes(title_text="count", row=row, col=col)
 
-    # --- energy panels ----------------------------------------------------- #
-    if m.has_energy:
-        e = m.energy[np.isfinite(m.energy)]
-        edges, counts, _ = energy_histogram(e)
-        centers = 0.5 * (edges[:-1] + edges[1:])
-        fig.add_trace(go.Bar(x=centers, y=counts, marker_color=_BENCH,
-                             showlegend=False), row=2, col=2)
-        fig.add_vline(x=0.0, line=dict(color=_INK, width=0.8, dash="dot"),
-                      row=2, col=2)
-        fig.update_xaxes(title_text="ΔE interaction (kJ/mol)", row=2, col=2)
-        fig.update_yaxes(title_text="count", row=2, col=2)
 
-        gd = np.isfinite(m.R) & np.isfinite(m.energy)
-        fig.add_trace(go.Histogram2d(
-            x=m.R[gd], y=m.energy[gd], nbinsx=30, nbinsy=30,
-            colorscale="Magma_r",
-            colorbar=dict(title="count", len=0.42, y=0.20, x=1.005,
-                          thickness=12)), row=2, col=3)
-        fig.add_hline(x0=None, y=0.0, line=dict(color=_INK, width=0.8, dash="dot"),
-                      row=2, col=3)
-        fig.update_xaxes(title_text="COM separation R (Å)", row=2, col=3)
-        fig.update_yaxes(title_text="ΔE (kJ/mol)", row=2, col=3)
+def _add_energy_hist(fig, m, row, col):
+    import plotly.graph_objects as go
+    e = m.energy[np.isfinite(m.energy)]
+    edges, counts, _ = energy_histogram(e)
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    fig.add_trace(go.Bar(x=centers, y=counts, marker_color=_BENCH,
+                         showlegend=False), row=row, col=col)
+    fig.add_vline(x=0.0, line=dict(color=_INK, width=0.8, dash="dot"),
+                  row=row, col=col)
+    fig.update_xaxes(title_text="ΔE interaction (kJ/mol)", row=row, col=col)
+    fig.update_yaxes(title_text="count", row=row, col=col)
 
-    # --- layout ------------------------------------------------------------ #
+
+def _add_energy_vs_R(fig, m, row, col, colorbar=None):
+    import plotly.graph_objects as go
+    gd = np.isfinite(m.R) & np.isfinite(m.energy)
+    fig.add_trace(go.Histogram2d(
+        x=m.R[gd], y=m.energy[gd], nbinsx=30, nbinsy=30, colorscale="Magma_r",
+        colorbar=colorbar or dict(title="count", thickness=12)),
+        row=row, col=col)
+    fig.add_hline(y=0.0, line=dict(color=_INK, width=0.8, dash="dot"),
+                  row=row, col=col)
+    fig.update_xaxes(title_text="COM separation R (Å)", row=row, col=col)
+    fig.update_yaxes(title_text="ΔE (kJ/mol)", row=row, col=col)
+
+
+def _subtitle(m: DimerMetrics) -> str:
+    s = summarize(m)
     sub = (f"N = {s['n']}   R∈[{s['R_min']:.2f}, {s['R_max']:.2f}] Å   "
            f"approach concentration = {s['approach_concentration']:.2f}")
     if m.has_energy:
         sub += (f"   ΔE_min = {s['energy_min']:.1f}   "
                 f"attractive = {100 * s['energy_frac_attractive']:.0f}%")
+    return sub
+
+
+def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
+    """Assemble all diagnostics as a single combined plotly ``go.Figure``.
+
+    Panels (energy panels dropped automatically when no energies are present):
+      separation histogram | contact distances | approach-direction sphere map |
+      relative-orientation histogram | energy histogram + flatness | ΔE vs R.
+
+    See :func:`make_panels` for the same panels as individual figures.
+    """
+    from plotly.subplots import make_subplots
+
+    m = metrics
+    if m.has_energy:
+        _, _, flat = energy_histogram(m.energy[np.isfinite(m.energy)])
+        titles = [
+            "Separation coverage", "Contact distribution",
+            "Approach direction (A frame)", "Relative orientation",
+            f"Energy distribution (flatness CV = {flat:.2f})",
+            "Binding-curve envelope",
+        ]
+        fig = make_subplots(rows=2, cols=3, subplot_titles=titles,
+                            horizontal_spacing=0.085, vertical_spacing=0.16)
+        ncols = 3
+    else:
+        titles = ["Separation coverage", "Contact distribution",
+                  "Approach direction (A frame)", "Relative orientation"]
+        fig = make_subplots(rows=1, cols=4, subplot_titles=titles,
+                            horizontal_spacing=0.06)
+        ncols = 4
+
+    _add_separation(fig, m, 1, 1)
+    _add_contact(fig, m, 1, 2)
+    _add_approach(fig, m, 1, 3, ncols,
+                  colorbar=(dict(title="ΔE", len=0.42, y=0.80, x=1.005,
+                                 thickness=12) if m.has_energy else None))
+    ori_rc = (2, 1) if m.has_energy else (1, 4)
+    _add_orientation(fig, m, ori_rc[0], ori_rc[1])
+    if m.has_energy:
+        _add_energy_hist(fig, m, 2, 2)
+        _add_energy_vs_R(fig, m, 2, 3,
+                         colorbar=dict(title="count", len=0.42, y=0.20, x=1.005,
+                                       thickness=12))
+
     fig.update_layout(
         template="simple_white",
-        title=dict(text=f"<b>{title}</b><br><sup>{sub}</sup>", x=0.045,
+        title=dict(text=f"<b>{title}</b><br><sup>{_subtitle(m)}</sup>", x=0.045,
                    xanchor="left", font=dict(size=17)),
         height=760 if m.has_energy else 400,
         width=1280,
@@ -454,3 +498,81 @@ def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
         if ann.text in titles:
             ann.font = dict(size=12)
     return fig
+
+
+# --------------------------------------------------------------------------- #
+# Individual panels -- same trace builders, each on its own go.Figure
+# --------------------------------------------------------------------------- #
+def _single(add_fn, m, title, width=560, height=400, show_legend=False):
+    """Wrap one panel builder in a standalone 1x1 figure with a shared header."""
+    from plotly.subplots import make_subplots
+    fig = make_subplots(rows=1, cols=1)
+    add_fn(fig)
+    fig.update_layout(
+        template="simple_white",
+        title=dict(text=f"<b>{title}</b><br><sup>{_subtitle(m)}</sup>", x=0.03,
+                   xanchor="left", font=dict(size=15)),
+        width=width, height=height, bargap=0.05,
+        margin=dict(l=65, r=80, t=80, b=55),
+        showlegend=show_legend,
+        legend=dict(font=dict(size=10), yanchor="top", y=0.98, xanchor="right",
+                    x=0.99),
+    )
+    return fig
+
+
+def panel_separation(m: DimerMetrics, title: str = "Separation coverage"):
+    return _single(lambda f: _add_separation(f, m, 1, 1), m, title)
+
+
+def panel_contact(m: DimerMetrics, title: str = "Contact distribution"):
+    return _single(lambda f: _add_contact(f, m, 1, 1), m, title, show_legend=True)
+
+
+def panel_approach(m: DimerMetrics, title: str = "Approach direction (A frame)"):
+    return _single(lambda f: _add_approach(f, m, 1, 1, 1,
+                   colorbar=dict(title="ΔE", thickness=12) if m.has_energy else None),
+                   m, title, width=560, height=470)
+
+
+def panel_orientation(m: DimerMetrics, title: str = "Relative orientation"):
+    return _single(lambda f: _add_orientation(f, m, 1, 1), m, title)
+
+
+def panel_energy(m: DimerMetrics, title: Optional[str] = None):
+    """Energy-distribution panel, or ``None`` if the ensemble has no energies."""
+    if not m.has_energy:
+        return None
+    if title is None:
+        _, _, flat = energy_histogram(m.energy[np.isfinite(m.energy)])
+        title = f"Energy distribution (flatness CV = {flat:.2f})"
+    return _single(lambda f: _add_energy_hist(f, m, 1, 1), m, title)
+
+
+def panel_energy_vs_R(m: DimerMetrics, title: str = "Binding-curve envelope"):
+    """ΔE-vs-R panel, or ``None`` if the ensemble has no energies."""
+    if not m.has_energy:
+        return None
+    return _single(lambda f: _add_energy_vs_R(f, m, 1, 1,
+                   colorbar=dict(title="count", thickness=12)),
+                   m, title, width=600)
+
+
+def make_panels(metrics: DimerMetrics) -> dict:
+    """Return each diagnostic as its own ``go.Figure``.
+
+    Keys: ``separation``, ``contact``, ``approach``, ``orientation`` always;
+    ``energy`` and ``energy_vs_R`` only when the ensemble carries energies.
+    Uses the same trace builders as :func:`make_dashboard`.
+    """
+    m = metrics
+    panels = {
+        "separation": panel_separation(m),
+        "contact": panel_contact(m),
+        "approach": panel_approach(m),
+        "orientation": panel_orientation(m),
+    }
+    if m.has_energy:
+        panels["energy"] = panel_energy(m)
+        panels["energy_vs_R"] = panel_energy_vs_R(m)
+    return panels
