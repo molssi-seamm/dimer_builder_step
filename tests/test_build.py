@@ -351,6 +351,20 @@ def test_energy_profile_finds_lj_well():
     assert dE[-1] == pytest.approx(0.0, abs=1.0e-6)  # far-point reference
 
 
+def test_interaction_energies_for_geometric_energy_scan():
+    """A geometric scan with an energy engine still records per-point ΔE."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    P = _P(**{"contact method": "energy", "spacing": "geometric"})
+    distances, gap_ref, dE_at, De = node._plan_scan(engine, assemble, 3.2, P)
+    assert dE_at is not None  # geometric+energy now carries ΔE
+    assert De == pytest.approx(0.01 * 2625.4996, rel=0.15)  # LJ well depth (kJ/mol)
+    # ΔE ~ 0 at the far point, negative in the well.
+    assert dE_at(9.0) == pytest.approx(0.0, abs=0.5)
+    assert min(dE_at(float(d)) for d in distances) < 0.0
+
+
 def test_stratified_separations_hits_levels_twice():
     """A negative ΔE level is crossed once on the wall and once on the tail."""
     node = dimer_builder_step.DimerBuilder()

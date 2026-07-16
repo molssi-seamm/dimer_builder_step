@@ -975,8 +975,37 @@ class DimerBuilder(seamm.Node):
             return distances, d_min, self._make_interpolator(ds, dE), De
 
         if engine is not None:
+            # Anchor the ladder at the energy minimum, then record the
+            # interaction energy at each scan point so the diagnostics carry ΔE
+            # (and the interaction-energy property is stored) even though the
+            # spacing itself is geometric/linear/explicit.
             contact = self._energy_anchor(engine, assemble, contact, P)
+            distances = self._separation_schedule(contact, P)
+            dE_at, De = self._interaction_energies(engine, assemble, distances, P)
+            return distances, contact, dE_at, De
         return self._separation_schedule(contact, P), contact, None, None
+
+    def _interaction_energies(self, engine, assemble, distances, P):
+        """ΔE (kJ/mol) at each scan distance, referenced to the far-point asymptote.
+
+        Used by the non-stratified energy paths so every energy-contact run
+        carries per-configuration interaction energies (the stratified path
+        already gets them from its ΔE(R) profile). The reference is the energy at
+        the maximum separation (≈ E_A + E_B). Returns ``(dE_at, De)``.
+        """
+        max_sep = P["maximum separation"].to("Å").magnitude
+        hartree_to_kJmol = Q_(1.0, "hartree").to("kJ/mol").magnitude
+
+        def energy_at(d):
+            engine.set_coordinates(assemble(float(d)), units="Å")
+            return engine.energy(units="hartree")
+
+        ds = np.unique(np.asarray(distances, dtype=float))
+        e_ref = energy_at(max(max_sep, float(ds[-1])))
+        es = np.array([energy_at(d) for d in ds])
+        dE = (es - e_ref) * hartree_to_kJmol
+        De = float(-dE.min()) if dE.min() < 0.0 else 0.0
+        return self._make_interpolator(ds, dE), De
 
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
