@@ -2,6 +2,34 @@
 History
 =======
 
+2026.7.20 -- Energy-stratified sampling and sampling diagnostics
+    * Added an **energy-stratified** spacing for the radial scan (with the energy
+      contact method): instead of a fixed geometric ladder, the scan points are
+      placed to hit a spread of interaction-energy levels (e.g. the well depth,
+      half the well depth, zero, and a few multiples of kBT) along the energy
+      profile. This gives a sample that is flat in energy — from the repulsive
+      wall through the attractive well to the long-range tail — which is what a
+      machine-learned force field needs, rather than piling most points in the
+      shallow near-zero-interaction region.
+    * Orientations can be weighted by how deeply they bind: shallow, glancing
+      orientations can be rejected, or kept with a probability that grows with
+      the well depth, so effort concentrates on the physically important
+      geometries.
+    * The energy-stratified scan is anchored on the actual energy minimum found
+      from the engine, with the repulsive wall sampled by energy, so it no longer
+      relies on the van der Waals estimate being accurate (the "innermost gap"
+      setting therefore does not apply to this spacing).
+    * The interaction energy is now recorded for every configuration whenever the
+      energy contact method is used (any spacing), and saved as a property.
+    * Added **sampling diagnostics**: after a build, the step reports a short
+      summary and, with "Sampling diagnostics" set to ``basic`` or ``detailed``,
+      writes interactive graphs for the Dashboard — separation coverage, contact
+      distances, approach direction, relative orientation, and (when energies
+      were computed) the interaction-energy distribution and binding-curve
+      envelope. ``detailed`` also writes each panel as its own graph. Extra image
+      formats (PDF, PNG, SVG, ...) can be requested with ``graph-formats`` in
+      ``seamm.ini``.
+
 2026.7.9 -- ORCA engine for energy contact, and consistent CoM separation
     * The energy-based contact search can now use **ORCA** (via a Model
       Chemistry step), in addition to MOPAC and xTB. Any MDI-capable model
