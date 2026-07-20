@@ -963,37 +963,68 @@ class DimerBuilder(seamm.Node):
                 raise ValueError(f"Could not evaluate the ΔE level '{token}': {e}")
         return levels
 
-    def _stratified_separations(self, ds, dE, d_min, De, P):
-        """Center-to-center distances that hit a spread of ΔE levels.
+    def _repulsive_cap(self, P):
+        """The largest positive ΔE level (kJ/mol) -- the repulsive-wall cap.
 
-        Inverts the ΔE(R) profile: for each target level, every R at which
-        ΔE(R) crosses it is found by linear interpolation between grid points
-        (a negative level is crossed twice -- once on the repulsive wall, once
-        on the attractive tail -- and both are kept). The innermost grid point
-        is always included so the repulsive wall is never starved, and the well
-        bottom is included whenever a binding well exists. Levels deeper than
-        the well simply have no crossing and are skipped.
+        Points more repulsive than this are dropped, so the innermost gap can
+        never push a configuration to an absurd energy (e.g. +130 kJ/mol). The
+        positive levels are kBT-based, so De is irrelevant here.
         """
-        kBT = self._kBT(P)
-        targets = self._energy_levels(De, kBT, P)
+        levels = self._energy_levels(0.0, self._kBT(P), P)
+        positive = [t for t in levels if t > 0.0]
+        return max(positive) if positive else None
 
-        distances = [float(ds[0])]  # keep the innermost point (the wall)
-        if De > 0.0:
-            distances.append(float(d_min))  # keep the well bottom
+    def _energy_candidates(self, ds, dE, P):
+        """Dense (distance, ΔE) candidate points from one orientation's profile.
 
-        for t in targets:
-            g = dE - t
-            for i in range(len(ds) - 1):
-                if g[i] == 0.0:
-                    distances.append(float(ds[i]))
-                if g[i] * g[i + 1] < 0.0:  # a crossing lies in this interval
-                    f = g[i] / (g[i] - g[i + 1])
-                    distances.append(float(ds[i] + f * (ds[i + 1] - ds[i])))
-            if g[-1] == 0.0:
-                distances.append(float(ds[-1]))
+        Interpolates ΔE on a fine radial grid spanning the sampled profile and
+        drops any point above the repulsive cap. These candidates from every
+        orientation are pooled and then globally stratified by energy; a dense
+        grid (rather than the ~handful of profile points) lets the global
+        binning fill each energy band smoothly.
+        """
+        interp = self._make_interpolator(ds, dE)
+        n = max(int(P["number of separations"]) * 3, 40)
+        grid = np.linspace(float(ds[0]), float(ds[-1]), n)
+        cap = self._repulsive_cap(P)
+        out = []
+        for d in grid:
+            e = interp(float(d))
+            if cap is None or e <= cap:
+                out.append((float(d), e))
+        return out
 
-        distances = np.clip(np.array(distances, dtype=float), 0.1, None)
-        return np.unique(np.round(distances, 4))
+    def _global_stratify(self, dE_values, P, rng):
+        """Indices of a flat-in-energy subset of the pooled candidates.
+
+        Bins the pooled interaction energies across [min, repulsive cap] into
+        'number of energy bins' bins and keeps up to (target / n_bins) per bin,
+        randomly subsampling over-full bins (sparser bins -- e.g. the deep well
+        -- contribute all they have). This is what makes the ensemble flat in
+        energy: per-orientation radial targeting cannot, because uniform random
+        orientations pile up near ΔE = 0.
+        """
+        dE = np.asarray(dE_values, dtype=float)
+        if dE.size == 0:
+            return []
+        n_bins = max(int(P["number of energy bins"]), 1)
+        per_bin = max(int(P["target configurations"]) // n_bins, 1)
+        lo = float(dE.min())
+        cap = self._repulsive_cap(P)
+        hi = float(cap) if (cap is not None and cap > lo) else float(dE.max())
+        if hi <= lo:
+            hi = lo + 1.0
+        edges = np.linspace(lo, hi, n_bins + 1)
+        which = np.clip(np.digitize(dE, edges) - 1, 0, n_bins - 1)
+        selected = []
+        for b in range(n_bins):
+            members = np.where(which == b)[0]
+            if len(members) <= per_bin:
+                selected.extend(members.tolist())
+            else:
+                pick = rng.choice(members, size=per_bin, replace=False)
+                selected.extend(int(i) for i in pick)
+        return sorted(selected)
 
     @staticmethod
     def _make_interpolator(ds, dE):
@@ -1070,6 +1101,120 @@ class DimerBuilder(seamm.Node):
         De = float(-dE.min()) if dE.min() < 0.0 else 0.0
         return self._make_interpolator(ds, dE), De
 
+    def _emit_configurations(
+        self,
+        out_sys,
+        base,
+        candidates,
+        orient_data,
+        P,
+        *,
+        save_props,
+        collect,
+        templates,
+        fixed_ids,
+        movable_ids,
+        symbols_A,
+        symbols_B,
+        a_idx,
+        b_idx,
+    ):
+        """Build the selected candidates into configurations.
+
+        ``candidates`` is a list of ``(orientation_index, distance, ΔE-or-None)``
+        (already selected/ordered); ``orient_data[i]`` holds that orientation's
+        ``rebuild(d) -> coords`` closure, gap reference, well depth, and angles.
+        Shared by both input modes. Returns ``(separations, ensemble, count)``.
+        """
+        t_fixed, t_movable = templates
+        count = 0
+        separations = []
+        ensemble = []
+        point_of = {}
+        for orient_index, d, dE_value in candidates:
+            o = orient_data[orient_index]
+            coords = o["rebuild"](d)
+            point_of[orient_index] = point_of.get(orient_index, 0) + 1
+            geometry = {
+                "separation": d,
+                "gap": d - o["gap_ref"],
+                "orientation": o["orientation"],
+                "theta": o["theta"],
+                "phi": o["phi"],
+                "alpha": o["alpha"],
+                "beta": o["beta"],
+                "gamma": o["gamma"],
+            }
+            if dE_value is not None:
+                geometry["interaction_energy"] = dE_value
+                geometry["well_depth"] = o["De"]
+            conf = base if count == 0 else out_sys.copy_configuration(base)
+            conf.atoms.set_coordinates(coords, fractionals=False)
+            self._name_and_tag(
+                conf,
+                P,
+                count + 1,
+                o["orientation"],
+                point_of[orient_index],
+                geometry,
+                save_props,
+            )
+            self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
+            if collect:
+                ensemble.append(
+                    self._make_dimer_record(
+                        symbols_A,
+                        coords[a_idx],
+                        symbols_B,
+                        coords[b_idx],
+                        geometry,
+                        conf.name,
+                    )
+                )
+            separations.append(d)
+            count += 1
+        return separations, ensemble, count
+
+    def _collect_candidates(
+        self,
+        engine,
+        assemble,
+        contact,
+        P,
+        rng,
+        orient_meta,
+        orient_data,
+        candidates,
+        weight=True,
+    ):
+        """Plan one orientation and append its candidate points to the pool.
+
+        For energy-stratified spacing, computes the ΔE(R) profile and emits a
+        dense, repulsive-capped candidate set (globally stratified later); for
+        the other spacings, uses the per-orientation radial schedule directly.
+        ``weight`` enables the orientation pre-filter (off for prepared dimers,
+        which are always kept). Returns True if the orientation contributed.
+        """
+        if engine is not None and P["spacing"] == "energy-stratified":
+            ds, dE, d_min, De = self._energy_profile(engine, assemble, contact, P)
+            if weight and not self._accept_orientation(De, P, rng):
+                return False
+            dE_at = self._make_interpolator(ds, dE)
+            cand = self._energy_candidates(ds, dE, P)
+            gap_ref = d_min
+        else:
+            plan = self._plan_scan(engine, assemble, contact, P, rng=rng, weight=weight)
+            if plan is None:
+                return False
+            distances, gap_ref, dE_at, De = plan
+            cand = [(float(d), dE_at(float(d)) if dE_at else None) for d in distances]
+
+        o_idx = len(orient_data)
+        orient_data.append({**orient_meta, "gap_ref": gap_ref, "De": De})
+        for d, e in cand:
+            candidates.append((o_idx, d, e))
+        return True
+
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
         # Backstop for hand-edited/scripted flowcharts (the GUI prevents this):
@@ -1082,7 +1227,7 @@ class DimerBuilder(seamm.Node):
         if P["input mode"] == "two monomer sets":
             return self._build_from_monomers(system_db, P, rng)
         else:
-            return self._build_from_dimers(system_db, P)
+            return self._build_from_dimers(system_db, P, rng)
 
     def _build_from_monomers(self, system_db, P, rng):
         """Mode A: assemble dimers from two monomer conformer pools."""
@@ -1128,9 +1273,11 @@ class DimerBuilder(seamm.Node):
 
         save_props = self._truthy(P["save scan variables as properties"])
         collect = self._collect_ensemble(P)
-        ensemble = []
-        count = 0
-        separations = []
+        global_strat = engine is not None and P["spacing"] == "energy-stratified"
+
+        # Phase 1: for each orientation, pool its candidate scan points.
+        orient_data = []
+        candidates = []
         try:
             for orientation in range(1, P["number of orientations"] + 1):
                 Ac = A_pool[int(rng.integers(len(A_pool)))]
@@ -1169,50 +1316,51 @@ class DimerBuilder(seamm.Node):
                 def assemble(d, xyzA=xyzA, xyzB=xyzB, axis=axis):
                     return np.vstack([xyzA, xyzB + axis * d])
 
-                plan = self._plan_scan(
-                    engine, assemble, contact, P, rng=rng, weight=True
-                )
-                if plan is None:
-                    continue  # orientation rejected by the weighting rule
-                distances, gap_ref, dE_at, De = plan
-
-                for point, d in enumerate(distances, start=1):
-                    coordinates = assemble(d)
-                    conf = base if count == 0 else dimer_sys.copy_configuration(base)
-                    conf.atoms.set_coordinates(coordinates, fractionals=False)
-                    geometry = {
-                        "separation": d,
-                        "gap": d - gap_ref,
+                self._collect_candidates(
+                    engine,
+                    assemble,
+                    contact,
+                    P,
+                    rng,
+                    {
+                        "rebuild": assemble,
                         "orientation": orientation,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
                         "beta": beta,
                         "gamma": gamma,
-                    }
-                    if dE_at is not None:
-                        geometry["interaction_energy"] = dE_at(d)
-                        geometry["well_depth"] = De
-                    self._name_and_tag(
-                        conf, P, count + 1, orientation, point, geometry, save_props
-                    )
-                    self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
-                    if collect:
-                        ensemble.append(
-                            self._make_dimer_record(
-                                symbols_A,
-                                xyzA,
-                                symbols_B,
-                                xyzB + axis * d,
-                                geometry,
-                                conf.name,
-                            )
-                        )
-                    separations.append(d)
-                    count += 1
+                    },
+                    orient_data,
+                    candidates,
+                )
         finally:
             if engine is not None:
                 engine.close()
+
+        # Phase 2: globally stratify the pooled candidates by energy.
+        if global_strat:
+            keep = self._global_stratify([c[2] for c in candidates], P, rng)
+            candidates = [candidates[i] for i in keep]
+        candidates.sort(key=lambda c: (c[0], c[1]))
+
+        # Phase 3: build the selected candidates.
+        separations, ensemble, count = self._emit_configurations(
+            dimer_sys,
+            base,
+            candidates,
+            orient_data,
+            P,
+            save_props=save_props,
+            collect=collect,
+            templates=(t_fixed, t_movable),
+            fixed_ids=fixed_ids,
+            movable_ids=movable_ids,
+            symbols_A=symbols_A,
+            symbols_B=symbols_B,
+            a_idx=np.arange(nA),
+            b_idx=np.arange(nA, nA + B0.n_atoms),
+        )
 
         stats = self._stats(name, P["number of orientations"], separations)
         stats["ensemble"] = ensemble
@@ -1221,7 +1369,7 @@ class DimerBuilder(seamm.Node):
             stats["n_energy_calls"] = engine.n_energy_calls
         return dimer_sys, stats
 
-    def _build_from_dimers(self, system_db, P):
+    def _build_from_dimers(self, system_db, P, rng):
         """Mode B: radial profiles from prepared complexes (fixed orientation).
 
         The 'movable' group is slid out from / in toward the 'fixed' group along
@@ -1268,10 +1416,13 @@ class DimerBuilder(seamm.Node):
 
         save_props = self._truthy(P["save scan variables as properties"])
         collect = self._collect_ensemble(P)
-        ensemble = []
-        count = 0
-        separations = []
-        orientation = 0
+        global_strat = engine is not None and P["spacing"] == "energy-stratified"
+
+        # Phase 1: pool candidate scan points from each prepared dimer.
+        orient_data = []
+        candidates = []
+        fixed_idx = np.asarray(fixed_idx)
+        movable_idx = np.asarray(movable_idx)
         try:
             for orientation, structure in enumerate(pool, start=1):
                 if structure.n_atoms != d0.n_atoms:
@@ -1320,50 +1471,55 @@ class DimerBuilder(seamm.Node):
                     return c
 
                 # Prepared dimers are user-provided orientations, so they are
-                # always kept (weight=False); only the radial schedule is planned.
-                distances, gap_ref, dE_at, De = self._plan_scan(
-                    engine, assemble, contact, P
-                )
-
-                for point, d in enumerate(distances, start=1):
-                    coordinates = assemble(d)
-                    conf = base if count == 0 else out_sys.copy_configuration(base)
-                    conf.atoms.set_coordinates(coordinates, fractionals=False)
-                    geometry = {
-                        "separation": d,
-                        "gap": d - gap_ref,
+                # always kept (weight=False); the pool is still energy-stratified.
+                self._collect_candidates(
+                    engine,
+                    assemble,
+                    contact,
+                    P,
+                    rng,
+                    {
+                        "rebuild": assemble,
                         "orientation": orientation,
                         "theta": theta,
                         "phi": phi,
                         "alpha": alpha,
                         "beta": beta,
                         "gamma": gamma,
-                    }
-                    if dE_at is not None:
-                        geometry["interaction_energy"] = dE_at(d)
-                        geometry["well_depth"] = De
-                    self._name_and_tag(
-                        conf, P, count + 1, orientation, point, geometry, save_props
-                    )
-                    self._add_subsets(conf, t_fixed, t_movable, fixed_ids, movable_ids)
-                    if collect:
-                        ensemble.append(
-                            self._make_dimer_record(
-                                symbols_fixed,
-                                coordinates[fixed_idx],
-                                symbols_movable,
-                                coordinates[movable_idx],
-                                geometry,
-                                conf.name,
-                            )
-                        )
-                    separations.append(d)
-                    count += 1
+                    },
+                    orient_data,
+                    candidates,
+                    weight=False,
+                )
         finally:
             if engine is not None:
                 engine.close()
 
-        stats = self._stats(name, orientation, separations)
+        # Phase 2: globally stratify by energy (energy-stratified spacing).
+        if global_strat:
+            keep = self._global_stratify([c[2] for c in candidates], P, rng)
+            candidates = [candidates[i] for i in keep]
+        candidates.sort(key=lambda c: (c[0], c[1]))
+
+        # Phase 3: build the selected candidates.
+        separations, ensemble, count = self._emit_configurations(
+            out_sys,
+            base,
+            candidates,
+            orient_data,
+            P,
+            save_props=save_props,
+            collect=collect,
+            templates=(t_fixed, t_movable),
+            fixed_ids=fixed_ids,
+            movable_ids=movable_ids,
+            symbols_A=symbols_fixed,
+            symbols_B=symbols_movable,
+            a_idx=fixed_idx,
+            b_idx=movable_idx,
+        )
+
+        stats = self._stats(name, len(orient_data), separations)
         stats["ensemble"] = ensemble
         if engine is not None:
             stats["model_chemistry"] = self._energy_model

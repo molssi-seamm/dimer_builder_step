@@ -77,8 +77,10 @@ def _P(**overrides):
         "separations": "",
         "energy levels": "-De, -De/2, 0, kBT, 5*kBT",
         "sampling temperature": Q_(300.0, "K"),
-        "orientation weighting": "reject shallow orientations",
-        "minimum well depth": Q_(1.0, "kJ/mol"),
+        "orientation weighting": "none",
+        "minimum well depth": Q_(2.5, "kJ/mol"),
+        "number of energy bins": 12,
+        "target configurations": 300,
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
@@ -365,31 +367,51 @@ def test_interaction_energies_for_geometric_energy_scan():
     assert min(dE_at(float(d)) for d in distances) < 0.0
 
 
-def test_stratified_separations_hits_levels_twice():
-    """A negative ΔE level is crossed once on the wall and once on the tail."""
+def test_energy_candidates_repulsive_capped():
+    """Candidate ΔE never exceeds the repulsive cap (largest positive level)."""
     node = dimer_builder_step.DimerBuilder()
     ds = np.linspace(2.0, 10.0, 81)
     De = 20.0
-    d_min = 3.2
-    # A smooth well: -De at d_min, positive (wall) below, -> 0 above.
+    # A smooth well: steep positive wall below d_min, -> 0 above.
     dE = De * (((3.0 / ds) ** 12) - 2.0 * ((3.0 / ds) ** 6))
     dE = dE / (-dE.min()) * De  # normalize the depth to exactly De
-    d_min = float(ds[np.argmin(dE)])
-    distances = node._stratified_separations(ds, dE, d_min, De, _P())
-    # The wall point, the well bottom, and both roots of -De/2 are present.
-    assert distances[0] == pytest.approx(ds[0])
-    assert any(abs(d - d_min) < 0.2 for d in distances)
-    half = [d for d in distances if d < d_min], [d for d in distances if d > d_min]
-    assert len(half[0]) >= 1 and len(half[1]) >= 1
+    cand = node._energy_candidates(ds, dE, _P())
+    cap = node._repulsive_cap(_P())  # +5*kBT ~ 12.5 kJ/mol
+    assert cand  # non-empty
+    assert max(e for _, e in cand) <= cap + 1e-9  # no +130 overshoot
+    assert min(e for _, e in cand) < 0.0  # the well is represented
+
+
+def test_global_stratify_flattens():
+    """Global stratification turns a peaked ΔE pool into a flat histogram."""
+    node = dimer_builder_step.DimerBuilder()
+    rng = np.random.default_rng(0)
+    # A pool piled near 0 (like uniform-orientation sampling) with a thin tail.
+    pool = np.concatenate(
+        [rng.normal(0.0, 0.5, 2000), rng.uniform(-18.0, 10.0, 200)]
+    ).tolist()
+    keep = node._global_stratify(pool, _P(), rng)
+    sel = np.array(pool)[keep]
+    # Flatness: coefficient of variation of the per-bin counts drops sharply.
+    edges = np.linspace(sel.min(), node._repulsive_cap(_P()), 13)
+    before, _ = np.histogram(pool, edges)
+    after, _ = np.histogram(sel, edges)
+
+    def cv(counts):
+        nz = counts[counts > 0].astype(float)
+        return nz.std() / nz.mean()
+
+    assert cv(after) < 0.6
+    assert cv(after) < cv(before)
 
 
 def test_accept_orientation_reject_and_none():
     node = dimer_builder_step.DimerBuilder()
     rng = np.random.default_rng(0)
-    P_reject = _P()  # reject shallow, min depth 1.0 kJ/mol
-    assert node._accept_orientation(5.0, P_reject, rng) is True
-    assert node._accept_orientation(0.2, P_reject, rng) is False
-    P_none = _P(**{"orientation weighting": "none"})
+    P_reject = _P(**{"orientation weighting": "reject shallow orientations"})
+    assert node._accept_orientation(5.0, P_reject, rng) is True  # deeper than 2.5
+    assert node._accept_orientation(0.2, P_reject, rng) is False  # shallower
+    P_none = _P()  # default is now 'none'
     assert node._accept_orientation(0.0, P_none, rng) is True
 
 

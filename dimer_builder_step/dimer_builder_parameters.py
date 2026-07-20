@@ -244,13 +244,12 @@ class DimerBuilderParameters(seamm.Parameters):
             "format_string": "",
             "description": "ΔE levels:",
             "help_text": (
-                "The target interaction-energy levels for 'energy-stratified' "
-                "spacing, as a comma-separated list. Each entry is a linear "
-                "expression in the well depth 'De' and the thermal energy 'kBT' "
-                "(both positive, in kJ/mol) -- e.g. '-De, -De/2, 0, kBT, 5*kBT'. "
-                "A negative level is hit twice (repulsive wall and attractive "
-                "tail); a positive level lands on the wall. The innermost profile "
-                "point is always kept so the wall is never starved."
+                "Sets the interaction-energy window for 'energy-stratified' "
+                "spacing, as a comma-separated list of linear expressions in the "
+                "well depth 'De' and thermal energy 'kBT' (kJ/mol) -- e.g. "
+                "'-De, -De/2, 0, kBT, 5*kBT'. The largest positive value caps the "
+                "repulsive wall (points above it are dropped); the candidates are "
+                "then globally binned across this range and capped per bin."
             ),
         },
         "sampling temperature": {
@@ -266,28 +265,28 @@ class DimerBuilderParameters(seamm.Parameters):
             ),
         },
         "orientation weighting": {
-            "default": "reject shallow orientations",
+            "default": "none",
             "kind": "enum",
             "default_units": "",
             "enumeration": (
+                "none",
                 "reject shallow orientations",
                 "downweight by depth",
-                "none",
             ),
             "format_string": "",
             "description": "Weight orientations by well depth:",
             "help_text": (
-                "How to use the ΔE(R) well depth of each random orientation "
-                "('energy-stratified' spacing, 'two monomer sets' mode only). "
-                "'reject shallow orientations' skips any orientation whose well is "
-                "shallower than the 'minimum well depth'. 'downweight by depth' "
-                "keeps each orientation with probability 1 - 2^(-De/minimum well "
-                "depth), so deeper (more physical) basins are favored. 'none' keeps "
-                "every orientation. Prepared dimers are always kept."
+                "Optional per-orientation pre-filter for 'energy-stratified' "
+                "spacing ('two monomer sets' mode). The default 'none' keeps every "
+                "orientation and lets the global energy-stratification balance the "
+                "ensemble. 'reject shallow orientations' skips any orientation whose "
+                "well is shallower than the 'minimum well depth'; 'downweight by "
+                "depth' keeps each with probability 1 - 2^(-De/minimum well depth). "
+                "Prepared dimers are always kept."
             ),
         },
         "minimum well depth": {
-            "default": 1.0,
+            "default": 2.5,
             "kind": "float",
             "default_units": "kJ/mol",
             "enumeration": tuple(),
@@ -295,9 +294,39 @@ class DimerBuilderParameters(seamm.Parameters):
             "description": "Minimum well depth:",
             "help_text": (
                 "For 'reject shallow orientations', the smallest ΔE well depth an "
-                "orientation must have to be kept. For 'downweight by depth', the "
-                "half-weight depth (an orientation with this depth is kept half the "
-                "time)."
+                "orientation must have to be kept (defaults to ~kBT at 300 K). For "
+                "'downweight by depth', the half-weight depth. Ignored when "
+                "orientation weighting is 'none'."
+            ),
+        },
+        "number of energy bins": {
+            "default": 12,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Number of energy bins:",
+            "help_text": (
+                "For 'energy-stratified' spacing: the number of interaction-energy "
+                "bins the pooled candidate configurations are sorted into for the "
+                "global stratification. Each bin is capped at the same count, so the "
+                "kept ensemble is flat in energy from the repulsive wall through the "
+                "well to the asymptote."
+            ),
+        },
+        "target configurations": {
+            "default": 300,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Target configurations:",
+            "help_text": (
+                "For 'energy-stratified' spacing: the approximate total number of "
+                "configurations to keep. The per-bin cap is this divided by the "
+                "number of energy bins; sparsely-populated energy ranges (e.g. the "
+                "deep well) may yield fewer, so the actual total can be smaller. "
+                "Increase the number of orientations to fill the deep bins."
             ),
         },
         "separations": {
