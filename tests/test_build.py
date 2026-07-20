@@ -503,6 +503,14 @@ def test_detailed_writes_panel_graphs(db_two_waters, tmp_path):
     assert "dimer_sampling.graph" in written  # the combined dashboard
     assert "dimer_sampling_separation.graph" in written  # a per-panel graph
     assert "dimer_sampling_contact.graph" in written
+    # The .graph must use plain JSON arrays, not plotly base64 typed arrays
+    # (the Dashboard's plotly.js does not decode {"dtype","bdata"} -> empty traces).
+    import json
+
+    text = (tmp_path / "dimer_sampling.graph").read_text()
+    assert '"bdata"' not in text
+    payload = json.loads(text)
+    assert isinstance(payload["data"][0]["x"], list)
 
 
 def test_direction_angles_known():

@@ -439,7 +439,7 @@ class DimerBuilder(seamm.Node):
             return
         base = os.path.join(self.directory, "dimer_sampling")
         with open(base + ".graph", "w") as fd:
-            fd.write(figure.to_json())
+            fd.write(self._graph_json(figure))
         self._write_extra_graph_formats(figure, base)
 
         if level != "detailed":
@@ -465,7 +465,7 @@ class DimerBuilder(seamm.Node):
                 continue
             panel_base = f"{base}_{name}"
             with open(panel_base + ".graph", "w") as fd:
-                fd.write(panel.to_json())
+                fd.write(self._graph_json(panel))
             self._write_extra_graph_formats(panel, panel_base)
         printer.important(
             __(
@@ -505,6 +505,37 @@ class DimerBuilder(seamm.Node):
                         indent=4 * " ",
                     )
                 )
+
+    @staticmethod
+    def _graph_json(figure):
+        """Serialize a plotly figure to SEAMM .graph JSON with plain-list arrays.
+
+        plotly's ``to_json`` base64-encodes numpy arrays as ``{"dtype","bdata"}``
+        typed arrays; the Dashboard's bundled plotly.js does not decode that form,
+        so the axes render but the traces are empty. Expand any typed array back
+        to a plain JSON list (the .graph is the only consumer that goes through
+        the Dashboard's plotly.js; the png/pdf/html exports use plotly directly
+        and handle their own encoding).
+        """
+        import base64
+        import json
+
+        def expand(obj):
+            if isinstance(obj, dict):
+                if "bdata" in obj and "dtype" in obj and isinstance(obj["bdata"], str):
+                    arr = np.frombuffer(
+                        base64.b64decode(obj["bdata"]), dtype=np.dtype(obj["dtype"])
+                    )
+                    shape = obj.get("shape")
+                    if shape:
+                        arr = arr.reshape([int(s) for s in str(shape).split(",")])
+                    return arr.tolist()
+                return {k: expand(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [expand(v) for v in obj]
+            return obj
+
+        return json.dumps(expand(json.loads(figure.to_json())))
 
     # ----------------------------------------------------------------- #
     # Implementation helpers
