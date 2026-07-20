@@ -313,11 +313,19 @@ class _LJEngine:
         self.sigma = sigma
         self.eps = eps
         self._xyz = None
+        self.n_energy_calls = 0
+
+    def close(self):
+        pass
 
     def set_coordinates(self, xyz, units="bohr"):
         self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
 
     def energy(self, units="hartree"):
+        self.n_energy_calls += 1
+        return self._energy()
+
+    def _energy(self):
         a = self._xyz[: self.nA].mean(axis=0)
         b = self._xyz[self.nA :].mean(axis=0)
         r = np.linalg.norm(b - a)
@@ -403,6 +411,38 @@ def test_global_stratify_flattens():
 
     assert cv(after) < 0.6
     assert cv(after) < cv(before)
+
+
+def test_build_global_stratified_end_to_end(db_two_waters, monkeypatch):
+    """The full global-stratified build path (via _build, engine monkeypatched)."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)  # well depth ~26 kJ/mol
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "number of orientations": 30,
+            "analysis plots": "basic",  # collect the ensemble to inspect ΔE
+            "number of energy bins": 10,
+            "target configurations": 120,
+        }
+    )
+    system, stats = node._build(db_two_waters, P, np.random.default_rng(3))
+
+    assert stats["n_configurations"] > 0
+    assert len(system.configurations) == stats["n_configurations"]
+    assert stats["n_energy_calls"] > 0
+
+    dE = np.array([d.energy for d in stats["ensemble"]])
+    cap = node._repulsive_cap(P)
+    assert dE.max() <= cap + 1e-6  # repulsive side capped (no +130 overshoot)
+    assert dE.min() < 0.0  # the attractive well is represented
+    # flat-in-energy: per-bin counts have a low coefficient of variation
+    counts, _ = np.histogram(dE, np.linspace(dE.min(), cap, 11))
+    nz = counts[counts > 0].astype(float)
+    assert nz.std() / nz.mean() < 0.6
 
 
 def test_accept_orientation_reject_and_none():
