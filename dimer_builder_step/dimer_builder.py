@@ -245,22 +245,26 @@ class DimerBuilder(seamm.Node):
                 "movable and the rest are fixed."
             )
 
-        text += (
-            f" For each, locate the contact distance using the '{P['contact method']}' "
-            f"method, then scan the center-to-center separation from an innermost gap "
-            f"of {P['innermost gap']} out to {P['maximum separation']}"
-        )
         if P["spacing"] == "energy-stratified":
             text += (
-                f", placing points at the interaction-energy levels "
-                f"'{P['energy levels']}' along the ΔE(R) profile"
+                f" For each, evaluate the interaction energy ΔE(R) along the "
+                f"approach using the '{P['contact method']}' method out to "
+                f"{P['maximum separation']}, then pool the candidate points across "
+                f"all orientations and keep a set that is flat in interaction "
+                f"energy -- sorting them into {P['number of energy bins']} ΔE bins "
+                f"over the range set by '{P['energy levels']}' and capping each bin "
+                f"equally (about {P['target configurations']} configurations total)."
             )
         else:
             text += (
-                f" with {P['number of separations']} points ({P['spacing']} spacing)"
+                f" For each, locate the contact distance using the "
+                f"'{P['contact method']}' method, then scan the center-to-center "
+                f"separation from an innermost gap of {P['innermost gap']} out to "
+                f"{P['maximum separation']} with {P['number of separations']} points "
+                f"({P['spacing']} spacing)."
             )
         text += (
-            f". The configurations are stored in a new system named "
+            f" The configurations are stored in a new system named "
             f"'{P['system name']}'."
         )
 
