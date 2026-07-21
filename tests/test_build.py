@@ -75,9 +75,16 @@ def _P(**overrides):
         "spacing": "geometric",
         "number of separations": 8,
         "separations": "",
+        "energy levels": "-De, -De/2, 0, kBT, 5*kBT",
+        "sampling temperature": Q_(300.0, "K"),
+        "orientation weighting": "none",
+        "minimum well depth": Q_(2.5, "kJ/mol"),
+        "number of energy bins": 12,
+        "target configurations": 300,
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
+        "analysis plots": "none",
     }
     P.update(overrides)
     return P
@@ -286,6 +293,286 @@ def test_energy_anchor_falls_back_when_no_well():
     assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
     anchor = node._energy_anchor(_Repulsive(), assemble, seed=2.9, P=_P())
     assert anchor == pytest.approx(2.9)
+
+
+# --------------------------------------------------------------------------- #
+# Energy-stratified radial sampling
+# --------------------------------------------------------------------------- #
+
+
+class _LJEngine:
+    """A fake engine with a Lennard-Jones energy in the fragment separation.
+
+    Duck-types the MDIEngine bits used by _energy_profile, giving a real well
+    (depth eps at r = sigma·2^(1/6)) and a ΔE that decays to ~0 at large R.
+    ``eps`` is in hartree, so the profile's kJ/mol well depth is eps·2625.5.
+    """
+
+    def __init__(self, nA, sigma, eps):
+        self.nA = nA
+        self.sigma = sigma
+        self.eps = eps
+        self._xyz = None
+        self.n_energy_calls = 0
+
+    def close(self):
+        pass
+
+    def set_coordinates(self, xyz, units="bohr"):
+        self._xyz = np.asarray(xyz, dtype=float).reshape(-1, 3)
+
+    def energy(self, units="hartree"):
+        self.n_energy_calls += 1
+        return self._energy()
+
+    def _energy(self):
+        a = self._xyz[: self.nA].mean(axis=0)
+        b = self._xyz[self.nA :].mean(axis=0)
+        r = np.linalg.norm(b - a)
+        sr6 = (self.sigma / r) ** 6
+        return float(4.0 * self.eps * (sr6**2 - sr6))
+
+
+def test_kBT_at_300K():
+    node = dimer_builder_step.DimerBuilder()
+    assert node._kBT(_P()) == pytest.approx(2.4943, abs=1.0e-3)
+
+
+def test_energy_levels_parser():
+    node = dimer_builder_step.DimerBuilder()
+    levels = node._energy_levels(20.0, 2.5, _P())
+    assert levels == pytest.approx([-20.0, -10.0, 0.0, 2.5, 12.5])
+
+
+def test_energy_levels_rejects_bad_token():
+    node = dimer_builder_step.DimerBuilder()
+    with pytest.raises(ValueError):
+        node._energy_levels(20.0, 2.5, _P(**{"energy levels": "De, __import__"}))
+
+
+def test_energy_profile_finds_lj_well():
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    ds, dE, d_min, De = node._energy_profile(engine, assemble, seed=3.0, P=_P())
+    # The LJ minimum is at sigma * 2**(1/6) and the well depth is eps (in kJ/mol).
+    assert d_min == pytest.approx(3.0 * 2.0 ** (1.0 / 6.0), abs=0.5)
+    assert De == pytest.approx(0.01 * 2625.4996, rel=0.1)
+    assert dE[-1] == pytest.approx(0.0, abs=1.0e-6)  # far-point reference
+
+
+def test_interaction_energies_for_geometric_energy_scan():
+    """A geometric scan with an energy engine still records per-point ΔE."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    P = _P(**{"contact method": "energy", "spacing": "geometric"})
+    distances, gap_ref, dE_at, De = node._plan_scan(engine, assemble, 3.2, P)
+    assert dE_at is not None  # geometric+energy now carries ΔE
+    assert De == pytest.approx(0.01 * 2625.4996, rel=0.15)  # LJ well depth (kJ/mol)
+    # ΔE ~ 0 at the far point, negative in the well.
+    assert dE_at(9.0) == pytest.approx(0.0, abs=0.5)
+    assert min(dE_at(float(d)) for d in distances) < 0.0
+
+
+def test_energy_candidates_repulsive_capped():
+    """Candidate ΔE never exceeds the repulsive cap (largest positive level)."""
+    node = dimer_builder_step.DimerBuilder()
+    ds = np.linspace(2.0, 10.0, 81)
+    De = 20.0
+    # A smooth well: steep positive wall below d_min, -> 0 above.
+    dE = De * (((3.0 / ds) ** 12) - 2.0 * ((3.0 / ds) ** 6))
+    dE = dE / (-dE.min()) * De  # normalize the depth to exactly De
+    cand = node._energy_candidates(ds, dE, _P())
+    cap = node._repulsive_cap(_P())  # +5*kBT ~ 12.5 kJ/mol
+    assert cand  # non-empty
+    assert max(e for _, e in cand) <= cap + 1e-9  # no +130 overshoot
+    assert min(e for _, e in cand) < 0.0  # the well is represented
+
+
+def test_global_stratify_flattens():
+    """Global stratification turns a peaked ΔE pool into a flat histogram."""
+    node = dimer_builder_step.DimerBuilder()
+    rng = np.random.default_rng(0)
+    # A pool piled near 0 (like uniform-orientation sampling) with a thin tail.
+    pool = np.concatenate(
+        [rng.normal(0.0, 0.5, 2000), rng.uniform(-18.0, 10.0, 200)]
+    ).tolist()
+    keep = node._global_stratify(pool, _P(), rng)
+    sel = np.array(pool)[keep]
+    # Flatness: coefficient of variation of the per-bin counts drops sharply.
+    edges = np.linspace(sel.min(), node._repulsive_cap(_P()), 13)
+    before, _ = np.histogram(pool, edges)
+    after, _ = np.histogram(sel, edges)
+
+    def cv(counts):
+        nz = counts[counts > 0].astype(float)
+        return nz.std() / nz.mean()
+
+    assert cv(after) < 0.6
+    assert cv(after) < cv(before)
+
+
+def test_build_global_stratified_end_to_end(db_two_waters, monkeypatch):
+    """The full global-stratified build path (via _build, engine monkeypatched)."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)  # well depth ~26 kJ/mol
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "number of orientations": 30,
+            "analysis plots": "basic",  # collect the ensemble to inspect ΔE
+            "number of energy bins": 10,
+            "target configurations": 120,
+        }
+    )
+    system, stats = node._build(db_two_waters, P, np.random.default_rng(3))
+
+    assert stats["n_configurations"] > 0
+    assert len(system.configurations) == stats["n_configurations"]
+    assert stats["n_energy_calls"] > 0
+
+    dE = np.array([d.energy for d in stats["ensemble"]])
+    cap = node._repulsive_cap(P)
+    assert dE.max() <= cap + 1e-6  # repulsive side capped (no +130 overshoot)
+    assert dE.min() < 0.0  # the attractive well is represented
+    # flat-in-energy: per-bin counts have a low coefficient of variation
+    counts, _ = np.histogram(dE, np.linspace(dE.min(), cap, 11))
+    nz = counts[counts > 0].astype(float)
+    assert nz.std() / nz.mean() < 0.6
+
+
+def test_accept_orientation_reject_and_none():
+    node = dimer_builder_step.DimerBuilder()
+    rng = np.random.default_rng(0)
+    P_reject = _P(**{"orientation weighting": "reject shallow orientations"})
+    assert node._accept_orientation(5.0, P_reject, rng) is True  # deeper than 2.5
+    assert node._accept_orientation(0.2, P_reject, rng) is False  # shallower
+    P_none = _P()  # default is now 'none'
+    assert node._accept_orientation(0.0, P_none, rng) is True
+
+
+def test_accept_orientation_downweight_probability():
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"orientation weighting": "downweight by depth"})
+    rng = np.random.default_rng(42)
+    # Deep well (10x the half-weight depth) -> kept nearly always.
+    kept = sum(node._accept_orientation(10.0, P, rng) for _ in range(200))
+    assert kept > 180
+
+
+# --------------------------------------------------------------------------- #
+# Sampling diagnostics (vendored dimer_analysis module, plotly)
+# --------------------------------------------------------------------------- #
+
+
+def test_dimer_analysis_metrics_and_summary():
+    from dimer_builder_step import dimer_analysis
+
+    rng = np.random.default_rng(0)
+    ensemble = []
+    for i in range(20):
+        z = 3.0 + 0.1 * i
+        ensemble.append(
+            dimer_analysis.Dimer(
+                symbols_A=["O", "H", "H"],
+                xyz_A=np.array(
+                    [[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]]
+                ),
+                symbols_B=["O", "H", "H"],
+                xyz_B=np.array([[0.0, 0.0, z], [0.76, 0.59, z], [-0.76, 0.59, z]]),
+                energy=float(rng.normal()),
+                separation=z,
+                orientation=1,
+            )
+        )
+    metrics = dimer_analysis.compute_metrics(ensemble)
+    s = dimer_analysis.summarize(metrics)
+    assert s["n"] == 20
+    assert metrics.has_energy
+    assert "energy_flatness" in s
+
+
+def test_build_collects_ensemble_when_requested(db_two_waters):
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"analysis plots": "basic"})
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(1))
+
+    ensemble = stats["ensemble"]
+    assert len(ensemble) == stats["n_configurations"]
+    d = ensemble[0]
+    assert d.symbols_A == ["O", "H", "H"] and d.symbols_B == ["O", "H", "H"]
+    assert d.xyz_A.shape == (3, 3) and d.xyz_B.shape == (3, 3)
+    # van der Waals contact method -> no interaction energies collected.
+    assert d.energy is None
+
+
+def test_build_skips_ensemble_when_none(db_two_waters):
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(db_two_waters, _P(), np.random.default_rng(1))
+    assert stats["ensemble"] == []
+
+
+def test_make_dashboard_returns_plotly_figure(db_two_waters):
+    import json
+
+    from dimer_builder_step import dimer_analysis
+
+    node = dimer_builder_step.DimerBuilder()
+    P = _P(**{"analysis plots": "basic"})
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(2))
+    metrics = dimer_analysis.compute_metrics(stats["ensemble"])
+    figure = dimer_analysis.make_dashboard(metrics, title="test")
+    # A native plotly go.Figure that serializes to the SEAMM .graph format.
+    assert len(figure.data) > 0
+    payload = json.loads(figure.to_json())
+    assert "data" in payload and "layout" in payload
+
+
+def test_make_panels_individual_figures(db_two_waters):
+    from dimer_builder_step import dimer_analysis
+
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(
+        db_two_waters, _P(**{"analysis plots": "detailed"}), np.random.default_rng(2)
+    )
+    metrics = dimer_analysis.compute_metrics(stats["ensemble"])
+    panels = dimer_analysis.make_panels(metrics)
+    # vdW contact -> no energies -> the four geometry panels, no energy panels.
+    assert set(panels) == {"separation", "contact", "approach", "orientation"}
+    assert all(len(fig.data) > 0 for fig in panels.values())
+
+
+def test_detailed_writes_panel_graphs(db_two_waters, tmp_path):
+    from unittest import mock
+
+    node = dimer_builder_step.DimerBuilder()
+    _, stats = node._build(
+        db_two_waters, _P(**{"analysis plots": "detailed"}), np.random.default_rng(2)
+    )
+    # 'directory' is a read-only property (flowchart root + node id); patch it.
+    with mock.patch.object(
+        type(node),
+        "directory",
+        new_callable=mock.PropertyMock,
+        return_value=str(tmp_path),
+    ):
+        node._run_diagnostics(stats["ensemble"], "detailed", stats["system"])
+    written = {p.name for p in tmp_path.glob("dimer_sampling*.graph")}
+    assert "dimer_sampling.graph" in written  # the combined dashboard
+    assert "dimer_sampling_separation.graph" in written  # a per-panel graph
+    assert "dimer_sampling_contact.graph" in written
+    # The .graph must use plain JSON arrays, not plotly base64 typed arrays
+    # (the Dashboard's plotly.js does not decode {"dtype","bdata"} -> empty traces).
+    import json
+
+    text = (tmp_path / "dimer_sampling.graph").read_text()
+    assert '"bdata"' not in text
+    payload = json.loads(text)
+    assert isinstance(payload["data"][0]["x"], list)
 
 
 def test_direction_angles_known():

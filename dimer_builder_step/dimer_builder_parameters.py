@@ -187,7 +187,9 @@ class DimerBuilderParameters(seamm.Parameters):
             "help_text": (
                 "The closest point of the scan, measured as the gap beyond "
                 "contact (0 = touching). A negative value starts inside contact, "
-                "i.e. with a slight overlap."
+                "i.e. with a slight overlap. Not used for 'energy-stratified' "
+                "spacing, which anchors on the energy minimum and sets its inner "
+                "bound by energy (the repulsive-wall target level)."
             ),
         },
         "maximum separation": {
@@ -203,14 +205,17 @@ class DimerBuilderParameters(seamm.Parameters):
             "default": "geometric",
             "kind": "enum",
             "default_units": "",
-            "enumeration": ("geometric", "linear", "explicit"),
+            "enumeration": ("geometric", "linear", "explicit", "energy-stratified"),
             "format_string": "",
             "description": "Spacing:",
             "help_text": (
                 "How the scan points are distributed along the gap coordinate. "
                 "'geometric' clusters points near contact and thins them in the "
                 "tail; 'linear' spaces them evenly; 'explicit' uses the list in "
-                "'separations'."
+                "'separations'. 'energy-stratified' places points at target "
+                "interaction-energy levels along the ΔE(R) profile (requires the "
+                "'energy' contact method), giving a flat-in-energy sample from the "
+                "repulsive wall through the well to the asymptote."
             ),
         },
         "number of separations": {
@@ -222,7 +227,106 @@ class DimerBuilderParameters(seamm.Parameters):
             "description": "Number of separations:",
             "help_text": (
                 "How many points to place along each radial profile, for "
-                "'geometric' or 'linear' spacing."
+                "'geometric' or 'linear' spacing. For 'energy-stratified' spacing "
+                "this is the resolution of the ΔE(R) profile (the number of "
+                "energy evaluations), not the number of output points -- those are "
+                "set by the 'energy levels'."
+            ),
+        },
+        # ------------------------------------------------------------------ #
+        # Energy-stratified spacing (needs the 'energy' contact method)
+        # ------------------------------------------------------------------ #
+        "energy levels": {
+            "default": "-De, -De/2, 0, kBT, 5*kBT",
+            "kind": "string",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "ΔE levels:",
+            "help_text": (
+                "Sets the interaction-energy window for 'energy-stratified' "
+                "spacing, as a comma-separated list of linear expressions in the "
+                "well depth 'De' and thermal energy 'kBT' (kJ/mol) -- e.g. "
+                "'-De, -De/2, 0, kBT, 5*kBT'. The largest positive value caps the "
+                "repulsive wall (points above it are dropped); the candidates are "
+                "then globally binned across this range and capped per bin."
+            ),
+        },
+        "sampling temperature": {
+            "default": 300.0,
+            "kind": "float",
+            "default_units": "K",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Sampling temperature:",
+            "help_text": (
+                "The temperature that sets kBT for the thermal 'energy levels' in "
+                "'energy-stratified' spacing."
+            ),
+        },
+        "orientation weighting": {
+            "default": "none",
+            "kind": "enum",
+            "default_units": "",
+            "enumeration": (
+                "none",
+                "reject shallow orientations",
+                "downweight by depth",
+            ),
+            "format_string": "",
+            "description": "Weight orientations by well depth:",
+            "help_text": (
+                "Optional per-orientation pre-filter for 'energy-stratified' "
+                "spacing ('two monomer sets' mode). The default 'none' keeps every "
+                "orientation and lets the global energy-stratification balance the "
+                "ensemble. 'reject shallow orientations' skips any orientation whose "
+                "well is shallower than the 'minimum well depth'; 'downweight by "
+                "depth' keeps each with probability 1 - 2^(-De/minimum well depth). "
+                "Prepared dimers are always kept."
+            ),
+        },
+        "minimum well depth": {
+            "default": 2.5,
+            "kind": "float",
+            "default_units": "kJ/mol",
+            "enumeration": tuple(),
+            "format_string": ".2f",
+            "description": "Minimum well depth:",
+            "help_text": (
+                "For 'reject shallow orientations', the smallest ΔE well depth an "
+                "orientation must have to be kept (defaults to ~kBT at 300 K). For "
+                "'downweight by depth', the half-weight depth. Ignored when "
+                "orientation weighting is 'none'."
+            ),
+        },
+        "number of energy bins": {
+            "default": 12,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Number of energy bins:",
+            "help_text": (
+                "For 'energy-stratified' spacing: the number of interaction-energy "
+                "bins the pooled candidate configurations are sorted into for the "
+                "global stratification. Each bin is capped at the same count, so the "
+                "kept ensemble is flat in energy from the repulsive wall through the "
+                "well to the asymptote."
+            ),
+        },
+        "target configurations": {
+            "default": 300,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Target configurations:",
+            "help_text": (
+                "For 'energy-stratified' spacing: the approximate total number of "
+                "configurations to keep. The per-bin cap is this divided by the "
+                "number of energy bins; sparsely-populated energy ranges (e.g. the "
+                "deep well) may yield fewer, so the actual total can be smaller. "
+                "Increase the number of orientations to fill the deep bins."
             ),
         },
         "separations": {
@@ -279,6 +383,25 @@ class DimerBuilderParameters(seamm.Parameters):
             "help_text": (
                 "Whether to store the separation, gap, and orientation index on "
                 "each configuration as properties, for downstream filtering."
+            ),
+        },
+        "analysis plots": {
+            "default": "basic",
+            "kind": "enum",
+            "default_units": "",
+            "enumeration": ("none", "basic", "detailed"),
+            "format_string": "",
+            "description": "Sampling diagnostics:",
+            "help_text": (
+                "Distribution diagnostics for the generated ensemble (separation "
+                "coverage, contact distances, approach direction, relative "
+                "orientation, and -- if interaction energies were computed -- the "
+                "ΔE distribution and flatness). 'none' skips them. 'basic' prints "
+                "the scalar summary and writes the combined interactive "
+                "'dimer_sampling.graph' for the Dashboard. 'detailed' additionally "
+                "writes each panel as its own 'dimer_sampling_<panel>.graph' for "
+                "closer inspection. Any extra image formats (png/pdf/svg/...) are "
+                "controlled by graph-formats in seamm.ini."
             ),
         },
         "results": {

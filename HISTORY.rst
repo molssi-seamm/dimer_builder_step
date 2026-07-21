@@ -2,6 +2,37 @@
 History
 =======
 
+2026.7.20 -- Energy-stratified sampling and sampling diagnostics
+    * Added an **energy-stratified** spacing (with the energy contact method) that
+      produces a set of dimers **flat in interaction energy** — evenly covering
+      the repulsive wall, the attractive well, and the long-range tail — which is
+      what a machine-learned force field needs, rather than the pile-up near zero
+      interaction that uniform sampling gives. It works globally: candidate
+      configurations are pooled across all orientations, sorted into
+      interaction-energy bins, and each bin is capped at the same count. Two
+      controls, "Number of energy bins" and "Target configurations", set the
+      resolution and the approximate total (deep-well energies are rare, so those
+      bins — and the total — may come out smaller; raise the number of
+      orientations to fill them).
+    * The scan is anchored on the actual energy minimum found from the engine, and
+      the repulsive side is capped at the largest "ΔE level" (default +5·kBT), so
+      configurations are never pushed to absurd repulsive energies and the
+      van der Waals estimate is only a starting guess (the "innermost gap" setting
+      does not apply to this spacing).
+    * Orientations may optionally be pre-filtered by how deeply they bind (reject
+      shallow, or downweight by depth); the default keeps every orientation and
+      lets the global stratification balance the set.
+    * The interaction energy is now recorded for every configuration whenever the
+      energy contact method is used (any spacing), and saved as a property.
+    * Added **sampling diagnostics**: after a build, the step reports a short
+      summary and, with "Sampling diagnostics" set to ``basic`` or ``detailed``,
+      writes interactive graphs for the Dashboard — separation coverage, contact
+      distances, approach direction, relative orientation, and (when energies
+      were computed) the interaction-energy distribution and binding-curve
+      envelope. ``detailed`` also writes each panel as its own graph. Extra image
+      formats (PDF, PNG, SVG, ...) can be requested with ``graph-formats`` in
+      ``seamm.ini``.
+
 2026.7.9 -- ORCA engine for energy contact, and consistent CoM separation
     * The energy-based contact search can now use **ORCA** (via a Model
       Chemistry step), in addition to MOPAC and xTB. Any MDI-capable model
