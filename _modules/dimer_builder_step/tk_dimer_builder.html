@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.tk_dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.9 documentation</title>
+    <title>dimer_builder_step.tk_dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
   
   
   
@@ -26,8 +26,8 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
@@ -35,12 +35,12 @@
     <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=c224919a" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=c1739cce"></script>
+    <script src="../../_static/documentation_options.js?v=3aef2a18"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.9" />
+  <meta name="docsearch:version" content="2026.7.20" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -589,6 +589,7 @@
             <span class="s2">&quot;input mode&quot;</span><span class="p">,</span>
             <span class="s2">&quot;spacing&quot;</span><span class="p">,</span>
             <span class="s2">&quot;contact method&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;orientation weighting&quot;</span><span class="p">,</span>
             <span class="s2">&quot;monomer A configurations&quot;</span><span class="p">,</span>
             <span class="s2">&quot;monomer B configurations&quot;</span><span class="p">,</span>
         <span class="p">):</span>
@@ -619,8 +620,18 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters_frame</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Lay out the control parameters for the current choices.&quot;&quot;&quot;</span>
         <span class="n">mode</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;input mode&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
-        <span class="n">spacing</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
         <span class="n">energy</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;contact method&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;energy&quot;</span>
+
+        <span class="c1"># Energy-stratified spacing is only meaningful with an energy engine, so</span>
+        <span class="c1"># narrow the &#39;spacing&#39; choices to exclude it otherwise (prevent the</span>
+        <span class="c1"># invalid combination rather than only catching it at run time).</span>
+        <span class="n">spacings</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;geometric&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;explicit&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">energy</span><span class="p">:</span>
+            <span class="n">spacings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;energy-stratified&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">combobox</span><span class="o">.</span><span class="n">config</span><span class="p">(</span><span class="n">values</span><span class="o">=</span><span class="n">spacings</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">spacings</span><span class="p">:</span>
+            <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;geometric&quot;</span><span class="p">)</span>
+        <span class="n">spacing</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span>
 
         <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;parameters frame&quot;</span><span class="p">]</span>
         <span class="k">for</span> <span class="n">slave</span> <span class="ow">in</span> <span class="n">frame</span><span class="o">.</span><span class="n">grid_slaves</span><span class="p">():</span>
@@ -662,9 +673,23 @@
             <span class="p">)</span>
             <span class="n">row</span> <span class="o">+=</span> <span class="mi">1</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;innermost gap&quot;</span><span class="p">,</span> <span class="s2">&quot;maximum separation&quot;</span><span class="p">,</span> <span class="s2">&quot;spacing&quot;</span><span class="p">):</span>
+            <span class="c1"># Energy-stratified spacing anchors on the energy minimum and sets</span>
+            <span class="c1"># its inner bound by energy, so the innermost gap does not apply.</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;innermost gap&quot;</span> <span class="ow">and</span> <span class="n">spacing</span> <span class="o">==</span> <span class="s2">&quot;energy-stratified&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
             <span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">spacing</span> <span class="o">==</span> <span class="s2">&quot;explicit&quot;</span><span class="p">:</span>
             <span class="n">add</span><span class="p">(</span><span class="s2">&quot;separations&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">spacing</span> <span class="o">==</span> <span class="s2">&quot;energy-stratified&quot;</span><span class="p">:</span>
+            <span class="n">add</span><span class="p">(</span><span class="s2">&quot;number of separations&quot;</span><span class="p">)</span>  <span class="c1"># ΔE(R) profile resolution</span>
+            <span class="n">add</span><span class="p">(</span><span class="s2">&quot;energy levels&quot;</span><span class="p">)</span>
+            <span class="n">add</span><span class="p">(</span><span class="s2">&quot;sampling temperature&quot;</span><span class="p">)</span>
+            <span class="n">add</span><span class="p">(</span><span class="s2">&quot;number of energy bins&quot;</span><span class="p">)</span>
+            <span class="n">add</span><span class="p">(</span><span class="s2">&quot;target configurations&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;two monomer sets&quot;</span><span class="p">:</span>
+                <span class="n">add</span><span class="p">(</span><span class="s2">&quot;orientation weighting&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="p">[</span><span class="s2">&quot;orientation weighting&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">()</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+                    <span class="n">add</span><span class="p">(</span><span class="s2">&quot;minimum well depth&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">add</span><span class="p">(</span><span class="s2">&quot;number of separations&quot;</span><span class="p">)</span>
 
@@ -672,6 +697,7 @@
             <span class="s2">&quot;system name&quot;</span><span class="p">,</span>
             <span class="s2">&quot;configuration name&quot;</span><span class="p">,</span>
             <span class="s2">&quot;save scan variables as properties&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;analysis plots&quot;</span><span class="p">,</span>
         <span class="p">):</span>
             <span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 
@@ -734,8 +760,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -747,7 +773,7 @@
         <div class="footer-item">
 <p class="theme-version">
   <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
-  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
 </p></div>
       
     </div>

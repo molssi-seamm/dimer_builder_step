@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.9 documentation</title>
+    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
   
   
   
@@ -26,8 +26,8 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=a95f357e85573c9b56d5" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
@@ -35,12 +35,12 @@
     <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=c224919a" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../../_static/scripts/fontawesome.js?digest=a95f357e85573c9b56d5"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=c1739cce"></script>
+    <script src="../../_static/documentation_options.js?v=3aef2a18"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.9" />
+  <meta name="docsearch:version" content="2026.7.20" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -682,7 +682,9 @@
             <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
                 <span class="s2">&quot;The closest point of the scan, measured as the gap beyond &quot;</span>
                 <span class="s2">&quot;contact (0 = touching). A negative value starts inside contact, &quot;</span>
-                <span class="s2">&quot;i.e. with a slight overlap.&quot;</span>
+                <span class="s2">&quot;i.e. with a slight overlap. Not used for &#39;energy-stratified&#39; &quot;</span>
+                <span class="s2">&quot;spacing, which anchors on the energy minimum and sets its inner &quot;</span>
+                <span class="s2">&quot;bound by energy (the repulsive-wall target level).&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;maximum separation&quot;</span><span class="p">:</span> <span class="p">{</span>
@@ -698,14 +700,17 @@
             <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;geometric&quot;</span><span class="p">,</span>
             <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
             <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;geometric&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;explicit&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;geometric&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;explicit&quot;</span><span class="p">,</span> <span class="s2">&quot;energy-stratified&quot;</span><span class="p">),</span>
             <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
             <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Spacing:&quot;</span><span class="p">,</span>
             <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
                 <span class="s2">&quot;How the scan points are distributed along the gap coordinate. &quot;</span>
                 <span class="s2">&quot;&#39;geometric&#39; clusters points near contact and thins them in the &quot;</span>
                 <span class="s2">&quot;tail; &#39;linear&#39; spaces them evenly; &#39;explicit&#39; uses the list in &quot;</span>
-                <span class="s2">&quot;&#39;separations&#39;.&quot;</span>
+                <span class="s2">&quot;&#39;separations&#39;. &#39;energy-stratified&#39; places points at target &quot;</span>
+                <span class="s2">&quot;interaction-energy levels along the ΔE(R) profile (requires the &quot;</span>
+                <span class="s2">&quot;&#39;energy&#39; contact method), giving a flat-in-energy sample from the &quot;</span>
+                <span class="s2">&quot;repulsive wall through the well to the asymptote.&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;number of separations&quot;</span><span class="p">:</span> <span class="p">{</span>
@@ -717,7 +722,106 @@
             <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Number of separations:&quot;</span><span class="p">,</span>
             <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
                 <span class="s2">&quot;How many points to place along each radial profile, for &quot;</span>
-                <span class="s2">&quot;&#39;geometric&#39; or &#39;linear&#39; spacing.&quot;</span>
+                <span class="s2">&quot;&#39;geometric&#39; or &#39;linear&#39; spacing. For &#39;energy-stratified&#39; spacing &quot;</span>
+                <span class="s2">&quot;this is the resolution of the ΔE(R) profile (the number of &quot;</span>
+                <span class="s2">&quot;energy evaluations), not the number of output points -- those are &quot;</span>
+                <span class="s2">&quot;set by the &#39;energy levels&#39;.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="c1"># ------------------------------------------------------------------ #</span>
+        <span class="c1"># Energy-stratified spacing (needs the &#39;energy&#39; contact method)</span>
+        <span class="c1"># ------------------------------------------------------------------ #</span>
+        <span class="s2">&quot;energy levels&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;-De, -De/2, 0, kBT, 5*kBT&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;ΔE levels:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;Sets the interaction-energy window for &#39;energy-stratified&#39; &quot;</span>
+                <span class="s2">&quot;spacing, as a comma-separated list of linear expressions in the &quot;</span>
+                <span class="s2">&quot;well depth &#39;De&#39; and thermal energy &#39;kBT&#39; (kJ/mol) -- e.g. &quot;</span>
+                <span class="s2">&quot;&#39;-De, -De/2, 0, kBT, 5*kBT&#39;. The largest positive value caps the &quot;</span>
+                <span class="s2">&quot;repulsive wall (points above it are dropped); the candidates are &quot;</span>
+                <span class="s2">&quot;then globally binned across this range and capped per bin.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;sampling temperature&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">300.0</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling temperature:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;The temperature that sets kBT for the thermal &#39;energy levels&#39; in &quot;</span>
+                <span class="s2">&quot;&#39;energy-stratified&#39; spacing.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;orientation weighting&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;none&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;reject shallow orientations&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;downweight by depth&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Weight orientations by well depth:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;Optional per-orientation pre-filter for &#39;energy-stratified&#39; &quot;</span>
+                <span class="s2">&quot;spacing (&#39;two monomer sets&#39; mode). The default &#39;none&#39; keeps every &quot;</span>
+                <span class="s2">&quot;orientation and lets the global energy-stratification balance the &quot;</span>
+                <span class="s2">&quot;ensemble. &#39;reject shallow orientations&#39; skips any orientation whose &quot;</span>
+                <span class="s2">&quot;well is shallower than the &#39;minimum well depth&#39;; &#39;downweight by &quot;</span>
+                <span class="s2">&quot;depth&#39; keeps each with probability 1 - 2^(-De/minimum well depth). &quot;</span>
+                <span class="s2">&quot;Prepared dimers are always kept.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;minimum well depth&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">2.5</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.2f&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Minimum well depth:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;For &#39;reject shallow orientations&#39;, the smallest ΔE well depth an &quot;</span>
+                <span class="s2">&quot;orientation must have to be kept (defaults to ~kBT at 300 K). For &quot;</span>
+                <span class="s2">&quot;&#39;downweight by depth&#39;, the half-weight depth. Ignored when &quot;</span>
+                <span class="s2">&quot;orientation weighting is &#39;none&#39;.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;number of energy bins&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Number of energy bins:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;For &#39;energy-stratified&#39; spacing: the number of interaction-energy &quot;</span>
+                <span class="s2">&quot;bins the pooled candidate configurations are sorted into for the &quot;</span>
+                <span class="s2">&quot;global stratification. Each bin is capped at the same count, so the &quot;</span>
+                <span class="s2">&quot;kept ensemble is flat in energy from the repulsive wall through the &quot;</span>
+                <span class="s2">&quot;well to the asymptote.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;target configurations&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Target configurations:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;For &#39;energy-stratified&#39; spacing: the approximate total number of &quot;</span>
+                <span class="s2">&quot;configurations to keep. The per-bin cap is this divided by the &quot;</span>
+                <span class="s2">&quot;number of energy bins; sparsely-populated energy ranges (e.g. the &quot;</span>
+                <span class="s2">&quot;deep well) may yield fewer, so the actual total can be smaller. &quot;</span>
+                <span class="s2">&quot;Increase the number of orientations to fill the deep bins.&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;separations&quot;</span><span class="p">:</span> <span class="p">{</span>
@@ -774,6 +878,25 @@
             <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
                 <span class="s2">&quot;Whether to store the separation, gap, and orientation index on &quot;</span>
                 <span class="s2">&quot;each configuration as properties, for downstream filtering.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;analysis plots&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;basic&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;basic&quot;</span><span class="p">,</span> <span class="s2">&quot;detailed&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling diagnostics:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;Distribution diagnostics for the generated ensemble (separation &quot;</span>
+                <span class="s2">&quot;coverage, contact distances, approach direction, relative &quot;</span>
+                <span class="s2">&quot;orientation, and -- if interaction energies were computed -- the &quot;</span>
+                <span class="s2">&quot;ΔE distribution and flatness). &#39;none&#39; skips them. &#39;basic&#39; prints &quot;</span>
+                <span class="s2">&quot;the scalar summary and writes the combined interactive &quot;</span>
+                <span class="s2">&quot;&#39;dimer_sampling.graph&#39; for the Dashboard. &#39;detailed&#39; additionally &quot;</span>
+                <span class="s2">&quot;writes each panel as its own &#39;dimer_sampling_&lt;panel&gt;.graph&#39; for &quot;</span>
+                <span class="s2">&quot;closer inspection. Any extra image formats (png/pdf/svg/...) are &quot;</span>
+                <span class="s2">&quot;controlled by graph-formats in seamm.ini.&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span>
@@ -844,8 +967,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=a95f357e85573c9b56d5"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=a95f357e85573c9b56d5"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -857,7 +980,7 @@
         <div class="footer-item">
 <p class="theme-version">
   <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
-  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.19.0.
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
 </p></div>
       
     </div>

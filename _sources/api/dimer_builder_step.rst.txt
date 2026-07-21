@@ -4,6 +4,14 @@ dimer\_builder\_step package
 Submodules
 ----------
 
+dimer\_builder\_step.dimer\_analysis module
+-------------------------------------------
+
+.. automodule:: dimer_builder_step.dimer_analysis
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
 dimer\_builder\_step.dimer\_builder module
 ------------------------------------------
 
