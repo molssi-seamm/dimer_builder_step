@@ -250,11 +250,28 @@ class DimerBuilder(seamm.Node):
                 f" For each, evaluate the interaction energy ΔE(R) along the "
                 f"approach using the '{P['contact method']}' method out to "
                 f"{P['maximum separation']}, then pool the candidate points across "
-                f"all orientations and keep a set that is flat in interaction "
-                f"energy -- sorting them into {P['number of energy bins']} ΔE bins "
-                f"over the range set by '{P['energy levels']}' and capping each bin "
-                f"equally (about {P['target configurations']} configurations total)."
+                f"all orientations and keep about {P['target configurations']} of "
+                f"them"
             )
+            method = P.get("selection method", "energy bins")
+            if method == "descriptor diversity":
+                text += (
+                    " by clustering in a space of geometric collective variables "
+                    "plus the interaction energy and keeping one per cluster (a "
+                    "DIRECT-style, de-duplicated, diverse set)."
+                )
+            elif method == "energy bins + diversity":
+                text += (
+                    f" by sorting them into {P['number of energy bins']} ΔE bins "
+                    "(flat in interaction energy) and keeping a geometrically "
+                    "diverse subset of each bin (DIRECT clustering)."
+                )
+            else:
+                text += (
+                    f" by sorting them into {P['number of energy bins']} ΔE bins "
+                    f"over the range set by '{P['energy levels']}' and capping each "
+                    f"bin equally (flat in interaction energy)."
+                )
         else:
             text += (
                 f" For each, locate the contact distance using the "
@@ -1030,6 +1047,177 @@ class DimerBuilder(seamm.Node):
                 selected.extend(int(i) for i in pick)
         return sorted(selected)
 
+    def _candidate_dimers(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx
+    ):
+        """Build ``dimer_analysis.Dimer`` objects for a list of candidates."""
+        from dimer_builder_step import dimer_analysis
+
+        out = []
+        for o, d, _e in candidates:
+            coords = orient_data[o]["rebuild"](d)
+            out.append(
+                dimer_analysis.Dimer(
+                    symbols_A=symbols_A,
+                    xyz_A=coords[a_idx],
+                    symbols_B=symbols_B,
+                    xyz_B=coords[b_idx],
+                )
+            )
+        return out
+
+    def _cluster_pick(self, dimers, dE, target, energy_weight):
+        """DIRECT featurize → cluster → nearest-centroid pick; local indices.
+
+        Featurizes each dimer by the collective variables ``dimer_analysis``
+        computes (separation, approach unit vector, relative orientation,
+        closest contact); if ``dE`` is given, the interaction energy is appended
+        as an extra feature scaled by ``energy_weight`` (so energy can be made to
+        count for more than one geometric dimension). Follows DIRECT (Qi et al.,
+        npj Comput. Mater. 2024): standardize → PCA (variance-weighted scores) →
+        BIRCH into ``target`` clusters → keep the member nearest each centroid.
+        Returns the kept indices into ``dimers``.
+        """
+        import warnings
+
+        from dimer_builder_step import dimer_analysis
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.decomposition import PCA
+        from sklearn.cluster import Birch
+        from sklearn.exceptions import ConvergenceWarning
+
+        n = len(dimers)
+        if n <= target:
+            return list(range(n))
+
+        m = dimer_analysis.compute_metrics(dimers)
+        cols = [
+            m.R,
+            m.approach_vec[:, 0],
+            m.approach_vec[:, 1],
+            m.approach_vec[:, 2],
+            m.orient_angle,
+            m.min_contact,
+        ]
+        if dE is not None:
+            cols.append(np.asarray(dE, dtype=float))
+        feats = np.column_stack(cols)
+        # Fill non-finite entries (e.g. orientation angle for a monatomic
+        # fragment) with the column mean so every candidate is clusterable.
+        for j in range(feats.shape[1]):
+            col = feats[:, j]
+            bad = ~np.isfinite(col)
+            if bad.any():
+                col[bad] = np.nanmean(col[~bad]) if (~bad).any() else 0.0
+
+        X = StandardScaler().fit_transform(feats)
+        if dE is not None:
+            X[:, -1] *= float(energy_weight)  # up-weight the energy axis
+
+        Z = PCA(n_components=min(X.shape)).fit_transform(X)
+        # Normalize the (variance-weighted) PCA scores to an overall unit scale so
+        # the BIRCH threshold behaves consistently, then shrink the threshold
+        # until BIRCH resolves at least 'target' subclusters (it warns and
+        # returns fewer otherwise -- the classic BIRCH pitfall).
+        scale = float(Z.std())
+        if scale > 0.0:
+            Z = Z / scale
+        threshold = 0.5
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
+            for _ in range(10):
+                model = Birch(threshold=threshold, n_clusters=target).fit(Z)
+                if len(model.subcluster_centers_) >= target:
+                    break
+                threshold *= 0.5
+        labels = model.labels_
+
+        keep = []
+        for lab in np.unique(labels):
+            members = np.where(labels == lab)[0]
+            centroid = Z[members].mean(axis=0)
+            nearest = members[np.argmin(((Z[members] - centroid) ** 2).sum(axis=1))]
+            keep.append(int(nearest))
+        return sorted(keep)
+
+    def _direct_select(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+    ):
+        """Method A: one global DIRECT clustering over the CVs **plus ΔE**.
+
+        ΔE is included as a feature scaled by the 'energy weight' parameter, so a
+        single clustering covers geometry and energy together; near-duplicate
+        geometries collapse (de-duplication) and the kept set spreads over both
+        axes. Returns the kept indices into ``candidates``.
+        """
+        target = max(int(P["target configurations"]), 1)
+        if len(candidates) <= target:
+            return list(range(len(candidates)))
+        dimers = self._candidate_dimers(
+            candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx
+        )
+        dE = [c[2] for c in candidates]
+        weight = float(P.get("energy weight", 1.0))
+        return self._cluster_pick(dimers, dE, target, weight)
+
+    def _select_within_bins(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+    ):
+        """Method B: flat-in-energy bins, DIRECT-diversify the geometry per bin.
+
+        Bins the candidates by ΔE (guaranteeing flat energy, like 'energy bins'),
+        then within each over-full bin keeps a geometrically diverse subset via
+        DIRECT on the geometric CVs alone (ΔE excluded -- energy is already fixed
+        by the bin). Returns the kept indices into ``candidates``.
+        """
+        dE = np.array([c[2] for c in candidates], dtype=float)
+        if dE.size == 0:
+            return []
+        n_bins = max(int(P["number of energy bins"]), 1)
+        per_bin = max(int(P["target configurations"]) // n_bins, 1)
+        lo = float(dE.min())
+        cap = self._repulsive_cap(P)
+        hi = float(cap) if (cap is not None and cap > lo) else float(dE.max())
+        if hi <= lo:
+            hi = lo + 1.0
+        edges = np.linspace(lo, hi, n_bins + 1)
+        which = np.clip(np.digitize(dE, edges) - 1, 0, n_bins - 1)
+
+        keep = []
+        for b in range(n_bins):
+            members = np.where(which == b)[0]
+            if len(members) <= per_bin:
+                keep.extend(int(i) for i in members)
+                continue
+            subset = [candidates[i] for i in members]
+            dimers = self._candidate_dimers(
+                subset, orient_data, symbols_A, symbols_B, a_idx, b_idx
+            )
+            local = self._cluster_pick(dimers, None, per_bin, 1.0)
+            keep.extend(int(members[j]) for j in local)
+        return sorted(keep)
+
+    def _select_pool(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P, rng
+    ):
+        """Down-select the pooled candidates by the chosen 'selection method'.
+
+        Returns the kept subset of ``candidates`` (both methods target about
+        'target configurations').
+        """
+        method = P.get("selection method", "energy bins")
+        if method == "descriptor diversity":
+            keep = self._direct_select(
+                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            )
+        elif method == "energy bins + diversity":
+            keep = self._select_within_bins(
+                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            )
+        else:
+            keep = self._global_stratify([c[2] for c in candidates], P, rng)
+        return [candidates[i] for i in keep]
+
     @staticmethod
     def _make_interpolator(ds, dE):
         """A function mapping a distance (Å) to its interpolated ΔE (kJ/mol)."""
@@ -1342,10 +1530,13 @@ class DimerBuilder(seamm.Node):
             if engine is not None:
                 engine.close()
 
-        # Phase 2: globally stratify the pooled candidates by energy.
+        # Phase 2: globally down-select the pooled candidates.
+        a_idx = np.arange(nA)
+        b_idx = np.arange(nA, nA + B0.n_atoms)
         if global_strat:
-            keep = self._global_stratify([c[2] for c in candidates], P, rng)
-            candidates = [candidates[i] for i in keep]
+            candidates = self._select_pool(
+                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P, rng
+            )
         candidates.sort(key=lambda c: (c[0], c[1]))
 
         # Phase 3: build the selected candidates.
@@ -1362,8 +1553,8 @@ class DimerBuilder(seamm.Node):
             movable_ids=movable_ids,
             symbols_A=symbols_A,
             symbols_B=symbols_B,
-            a_idx=np.arange(nA),
-            b_idx=np.arange(nA, nA + B0.n_atoms),
+            a_idx=a_idx,
+            b_idx=b_idx,
         )
 
         stats = self._stats(name, P["number of orientations"], separations)
@@ -1499,10 +1690,18 @@ class DimerBuilder(seamm.Node):
             if engine is not None:
                 engine.close()
 
-        # Phase 2: globally stratify by energy (energy-stratified spacing).
+        # Phase 2: globally down-select the pooled candidates.
         if global_strat:
-            keep = self._global_stratify([c[2] for c in candidates], P, rng)
-            candidates = [candidates[i] for i in keep]
+            candidates = self._select_pool(
+                candidates,
+                orient_data,
+                symbols_fixed,
+                symbols_movable,
+                fixed_idx,
+                movable_idx,
+                P,
+                rng,
+            )
         candidates.sort(key=lambda c: (c[0], c[1]))
 
         # Phase 3: build the selected candidates.

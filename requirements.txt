@@ -6,3 +6,4 @@ molsystem
 mendeleev
 numpy
 plotly
+scikit-learn

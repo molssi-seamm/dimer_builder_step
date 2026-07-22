@@ -79,6 +79,8 @@ def _P(**overrides):
         "sampling temperature": Q_(300.0, "K"),
         "orientation weighting": "none",
         "minimum well depth": Q_(2.5, "kJ/mol"),
+        "selection method": "energy bins",
+        "energy weight": 8.0,
         "number of energy bins": 12,
         "target configurations": 300,
         "system name": "from monomers",
@@ -443,6 +445,86 @@ def test_build_global_stratified_end_to_end(db_two_waters, monkeypatch):
     counts, _ = np.histogram(dE, np.linspace(dE.min(), cap, 11))
     nz = counts[counts > 0].astype(float)
     assert nz.std() / nz.mean() < 0.6
+
+
+def test_direct_select_dedups_and_spreads():
+    """DIRECT collapses a near-duplicate blob and spreads over the CV space."""
+    node = dimer_builder_step.DimerBuilder()
+    water = np.array([[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]])
+
+    def rebuild(d):
+        return np.vstack([water, water + np.array([0.0, 0.0, d])])
+
+    orient_data = [{"rebuild": rebuild}]
+    rng = np.random.default_rng(0)
+    cands = []
+    for _ in range(60):  # a tight blob of near-duplicates at d ~ 3.0
+        cands.append((0, float(3.0 + rng.normal(0, 0.01)), -10.0))
+    for d in np.linspace(3.2, 8.0, 40):  # a spread along the separation
+        cands.append((0, float(d), float(-10.0 * np.exp(-(d - 3.0)))))
+
+    P = _P(**{"selection method": "descriptor diversity", "target configurations": 20})
+    keep = node._direct_select(
+        cands,
+        orient_data,
+        ["O", "H", "H"],
+        ["O", "H", "H"],
+        np.arange(3),
+        np.arange(3, 6),
+        P,
+    )
+    kept_d = np.array([cands[i][1] for i in keep])
+    assert 15 <= len(keep) <= 20  # ~target clusters resolved (not under-selected)
+    assert np.sum(np.abs(kept_d - 3.0) < 0.05) <= 6  # blob de-duplicated
+    assert kept_d.max() > 6.0  # coverage reaches the long tail
+
+
+def test_build_direct_diversity_end_to_end(db_two_waters, monkeypatch):
+    """The full DIRECT selection path through _build (engine monkeypatched)."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "selection method": "descriptor diversity",
+            "number of orientations": 30,
+            "analysis plots": "none",
+            "target configurations": 80,
+        }
+    )
+    system, stats = node._build(db_two_waters, P, np.random.default_rng(3))
+    assert stats["n_configurations"] > 0
+    assert stats["n_configurations"] <= 85  # ~target: one per cluster
+    assert stats["n_energy_calls"] > 0
+
+
+def test_build_energy_bins_plus_diversity_end_to_end(db_two_waters, monkeypatch):
+    """Method B: energy binning stays flat while diversifying geometry per bin."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "selection method": "energy bins + diversity",
+            "number of orientations": 30,
+            "number of energy bins": 10,
+            "analysis plots": "basic",
+            "target configurations": 120,
+        }
+    )
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(3))
+    dE = np.array([d.energy for d in stats["ensemble"]])
+    cap = node._repulsive_cap(P)
+    counts, _ = np.histogram(dE, np.linspace(dE.min(), cap, 11))
+    nz = counts[counts > 0].astype(float)
+    assert nz.std() / nz.mean() < 0.6  # still flat in energy (guaranteed by bins)
+    assert dE.max() <= cap + 1e-6
 
 
 def test_accept_orientation_reject_and_none():
