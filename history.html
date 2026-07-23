@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
+    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=3aef2a18"></script>
+    <script src="_static/documentation_options.js?v=0d17a072"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -54,7 +54,7 @@
     <link rel="prev" title="Development Team" href="authors.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.20" />
+  <meta name="docsearch:version" content="2026.7.23" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -511,6 +511,29 @@
   <section id="history">
 <h1>History<a class="headerlink" href="#history" title="Link to this heading">#</a></h1>
 <dl>
+<dt>2026.7.23 – Diverse down-selection of the sampled dimers</dt><dd><ul>
+<li><p>Energy-stratified sampling can now keep a <strong>geometrically diverse,
+de-duplicated</strong> set rather than just a flat-in-energy one, so redundant
+near-identical configurations are dropped and distinct binding geometries
+are all represented. A new <strong>Down-select by</strong> control chooses how the
+pooled candidates are reduced to about <strong>Target configurations</strong>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p><em>energy bins + diversity</em> (the new default) keeps the flat-in-energy
+bins and, within each bin, selects a diverse subset by clustering the
+configurations’ geometry (separation, approach direction, relative
+orientation, and contacts);</p></li>
+<li><p><em>descriptor diversity</em> clusters globally over that geometry together
+with the interaction energy (weighted by <strong>Energy weight</strong>) – the
+most diverse, with energy flatness controlled by the weight; and</p></li>
+<li><p><em>energy bins</em> is the previous flat-in-energy behavior.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>This follows the DIRECT selection method (Qi et al., npj Comput. Mater.
+2024) and adds scikit-learn as a dependency.</p></li>
+</ul>
+</dd>
 <dt>2026.7.20 – Energy-stratified sampling and sampling diagnostics</dt><dd><ul class="simple">
 <li><p>Added an <strong>energy-stratified</strong> spacing (with the energy contact method) that
 produces a set of dimers <strong>flat in interaction energy</strong> — evenly covering

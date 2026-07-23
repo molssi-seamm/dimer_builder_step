@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
+    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=3aef2a18"></script>
+    <script src="../../_static/documentation_options.js?v=0d17a072"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.20" />
+  <meta name="docsearch:version" content="2026.7.23" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -759,11 +759,28 @@
                 <span class="sa">f</span><span class="s2">&quot; For each, evaluate the interaction energy ΔE(R) along the &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;approach using the &#39;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;contact method&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; method out to &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;maximum separation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">, then pool the candidate points across &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;all orientations and keep a set that is flat in interaction &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;energy -- sorting them into </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;number of energy bins&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> ΔE bins &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;over the range set by &#39;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;energy levels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; and capping each bin &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;equally (about </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;target configurations&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> configurations total).&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;all orientations and keep about </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;target configurations&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> of &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;them&quot;</span>
             <span class="p">)</span>
+            <span class="n">method</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;selection method&quot;</span><span class="p">,</span> <span class="s2">&quot;energy bins&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;descriptor diversity&quot;</span><span class="p">:</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="s2">&quot; by clustering in a space of geometric collective variables &quot;</span>
+                    <span class="s2">&quot;plus the interaction energy and keeping one per cluster (a &quot;</span>
+                    <span class="s2">&quot;DIRECT-style, de-duplicated, diverse set).&quot;</span>
+                <span class="p">)</span>
+            <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">:</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot; by sorting them into </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;number of energy bins&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> ΔE bins &quot;</span>
+                    <span class="s2">&quot;(flat in interaction energy) and keeping a geometrically &quot;</span>
+                    <span class="s2">&quot;diverse subset of each bin (DIRECT clustering).&quot;</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot; by sorting them into </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;number of energy bins&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> ΔE bins &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;over the range set by &#39;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;energy levels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; and capping each &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;bin equally (flat in interaction energy).&quot;</span>
+                <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot; For each, locate the contact distance using the &quot;</span>
@@ -1546,6 +1563,177 @@
                 <span class="n">selected</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">pick</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">selected</span><span class="p">)</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_candidate_dimers</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build ``dimer_analysis.Dimer`` objects for a list of candidates.&quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dimer_builder_step</span><span class="w"> </span><span class="kn">import</span> <span class="n">dimer_analysis</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">o</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">_e</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">orient_data</span><span class="p">[</span><span class="n">o</span><span class="p">][</span><span class="s2">&quot;rebuild&quot;</span><span class="p">](</span><span class="n">d</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">dimer_analysis</span><span class="o">.</span><span class="n">Dimer</span><span class="p">(</span>
+                    <span class="n">symbols_A</span><span class="o">=</span><span class="n">symbols_A</span><span class="p">,</span>
+                    <span class="n">xyz_A</span><span class="o">=</span><span class="n">coords</span><span class="p">[</span><span class="n">a_idx</span><span class="p">],</span>
+                    <span class="n">symbols_B</span><span class="o">=</span><span class="n">symbols_B</span><span class="p">,</span>
+                    <span class="n">xyz_B</span><span class="o">=</span><span class="n">coords</span><span class="p">[</span><span class="n">b_idx</span><span class="p">],</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cluster_pick</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dimers</span><span class="p">,</span> <span class="n">dE</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">energy_weight</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;DIRECT featurize → cluster → nearest-centroid pick; local indices.</span>
+
+<span class="sd">        Featurizes each dimer by the collective variables ``dimer_analysis``</span>
+<span class="sd">        computes (separation, approach unit vector, relative orientation,</span>
+<span class="sd">        closest contact); if ``dE`` is given, the interaction energy is appended</span>
+<span class="sd">        as an extra feature scaled by ``energy_weight`` (so energy can be made to</span>
+<span class="sd">        count for more than one geometric dimension). Follows DIRECT (Qi et al.,</span>
+<span class="sd">        npj Comput. Mater. 2024): standardize → PCA (variance-weighted scores) →</span>
+<span class="sd">        BIRCH into ``target`` clusters → keep the member nearest each centroid.</span>
+<span class="sd">        Returns the kept indices into ``dimers``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">dimer_builder_step</span><span class="w"> </span><span class="kn">import</span> <span class="n">dimer_analysis</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.decomposition</span><span class="w"> </span><span class="kn">import</span> <span class="n">PCA</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">Birch</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.exceptions</span><span class="w"> </span><span class="kn">import</span> <span class="n">ConvergenceWarning</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dimers</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="o">&lt;=</span> <span class="n">target</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+
+        <span class="n">m</span> <span class="o">=</span> <span class="n">dimer_analysis</span><span class="o">.</span><span class="n">compute_metrics</span><span class="p">(</span><span class="n">dimers</span><span class="p">)</span>
+        <span class="n">cols</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">R</span><span class="p">,</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">approach_vec</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">approach_vec</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">approach_vec</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">],</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">orient_angle</span><span class="p">,</span>
+            <span class="n">m</span><span class="o">.</span><span class="n">min_contact</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">dE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">dE</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">))</span>
+        <span class="n">feats</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">cols</span><span class="p">)</span>
+        <span class="c1"># Fill non-finite entries (e.g. orientation angle for a monatomic</span>
+        <span class="c1"># fragment) with the column mean so every candidate is clusterable.</span>
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">col</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span>
+            <span class="n">bad</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">bad</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">col</span><span class="p">[</span><span class="n">bad</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmean</span><span class="p">(</span><span class="n">col</span><span class="p">[</span><span class="o">~</span><span class="n">bad</span><span class="p">])</span> <span class="k">if</span> <span class="p">(</span><span class="o">~</span><span class="n">bad</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="mf">0.0</span>
+
+        <span class="n">X</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dE</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">X</span><span class="p">[:,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">*=</span> <span class="nb">float</span><span class="p">(</span><span class="n">energy_weight</span><span class="p">)</span>  <span class="c1"># up-weight the energy axis</span>
+
+        <span class="n">Z</span> <span class="o">=</span> <span class="n">PCA</span><span class="p">(</span><span class="n">n_components</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">))</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="c1"># Normalize the (variance-weighted) PCA scores to an overall unit scale so</span>
+        <span class="c1"># the BIRCH threshold behaves consistently, then shrink the threshold</span>
+        <span class="c1"># until BIRCH resolves at least &#39;target&#39; subclusters (it warns and</span>
+        <span class="c1"># returns fewer otherwise -- the classic BIRCH pitfall).</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">Z</span><span class="o">.</span><span class="n">std</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">scale</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="n">Z</span> <span class="o">/</span> <span class="n">scale</span>
+        <span class="n">threshold</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">ConvergenceWarning</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">Birch</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="n">threshold</span><span class="p">,</span> <span class="n">n_clusters</span><span class="o">=</span><span class="n">target</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">subcluster_centers_</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">target</span><span class="p">:</span>
+                    <span class="k">break</span>
+                <span class="n">threshold</span> <span class="o">*=</span> <span class="mf">0.5</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">labels_</span>
+
+        <span class="n">keep</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">lab</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">labels</span><span class="p">):</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">labels</span> <span class="o">==</span> <span class="n">lab</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">centroid</span> <span class="o">=</span> <span class="n">Z</span><span class="p">[</span><span class="n">members</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">nearest</span> <span class="o">=</span> <span class="n">members</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">argmin</span><span class="p">(((</span><span class="n">Z</span><span class="p">[</span><span class="n">members</span><span class="p">]</span> <span class="o">-</span> <span class="n">centroid</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))]</span>
+            <span class="n">keep</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">nearest</span><span class="p">))</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">keep</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_direct_select</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Method A: one global DIRECT clustering over the CVs **plus ΔE**.</span>
+
+<span class="sd">        ΔE is included as a feature scaled by the &#39;energy weight&#39; parameter, so a</span>
+<span class="sd">        single clustering covers geometry and energy together; near-duplicate</span>
+<span class="sd">        geometries collapse (de-duplication) and the kept set spreads over both</span>
+<span class="sd">        axes. Returns the kept indices into ``candidates``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">target</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)))</span>
+        <span class="n">dimers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidate_dimers</span><span class="p">(</span>
+            <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span>
+        <span class="p">)</span>
+        <span class="n">dE</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">]</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;energy weight&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">))</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_pick</span><span class="p">(</span><span class="n">dimers</span><span class="p">,</span> <span class="n">dE</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weight</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_select_within_bins</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Method B: flat-in-energy bins, DIRECT-diversify the geometry per bin.</span>
+
+<span class="sd">        Bins the candidates by ΔE (guaranteeing flat energy, like &#39;energy bins&#39;),</span>
+<span class="sd">        then within each over-full bin keeps a geometrically diverse subset via</span>
+<span class="sd">        DIRECT on the geometric CVs alone (ΔE excluded -- energy is already fixed</span>
+<span class="sd">        by the bin). Returns the kept indices into ``candidates``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dE</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dE</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="n">n_bins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of energy bins&quot;</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">])</span> <span class="o">//</span> <span class="n">n_bins</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">lo</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+        <span class="n">cap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repulsive_cap</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
+        <span class="n">hi</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">cap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cap</span> <span class="o">&gt;</span> <span class="n">lo</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">hi</span> <span class="o">&lt;=</span> <span class="n">lo</span><span class="p">:</span>
+            <span class="n">hi</span> <span class="o">=</span> <span class="n">lo</span> <span class="o">+</span> <span class="mf">1.0</span>
+        <span class="n">edges</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">,</span> <span class="n">n_bins</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">which</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">digitize</span><span class="p">(</span><span class="n">dE</span><span class="p">,</span> <span class="n">edges</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">n_bins</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">keep</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bins</span><span class="p">):</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">which</span> <span class="o">==</span> <span class="n">b</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">members</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">per_bin</span><span class="p">:</span>
+                <span class="n">keep</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">members</span><span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="n">subset</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">members</span><span class="p">]</span>
+            <span class="n">dimers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidate_dimers</span><span class="p">(</span>
+                <span class="n">subset</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span>
+            <span class="p">)</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_pick</span><span class="p">(</span><span class="n">dimers</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">per_bin</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="n">keep</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">members</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">local</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">keep</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_select_pool</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Down-select the pooled candidates by the chosen &#39;selection method&#39;.</span>
+
+<span class="sd">        Returns the kept subset of ``candidates`` (both methods target about</span>
+<span class="sd">        &#39;target configurations&#39;).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;selection method&quot;</span><span class="p">,</span> <span class="s2">&quot;energy bins&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;descriptor diversity&quot;</span><span class="p">:</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direct_select</span><span class="p">(</span>
+                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">:</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_within_bins</span><span class="p">(</span>
+                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_stratify</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
+
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_make_interpolator</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">dE</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;A function mapping a distance (Å) to its interpolated ΔE (kJ/mol).&quot;&quot;&quot;</span>
@@ -1858,10 +2046,13 @@
             <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">engine</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-        <span class="c1"># Phase 2: globally stratify the pooled candidates by energy.</span>
+        <span class="c1"># Phase 2: globally down-select the pooled candidates.</span>
+        <span class="n">a_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">)</span>
+        <span class="n">b_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">,</span> <span class="n">nA</span> <span class="o">+</span> <span class="n">B0</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">global_strat</span><span class="p">:</span>
-            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_stratify</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
-            <span class="n">candidates</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
+                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span>
+            <span class="p">)</span>
         <span class="n">candidates</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
 
         <span class="c1"># Phase 3: build the selected candidates.</span>
@@ -1878,8 +2069,8 @@
             <span class="n">movable_ids</span><span class="o">=</span><span class="n">movable_ids</span><span class="p">,</span>
             <span class="n">symbols_A</span><span class="o">=</span><span class="n">symbols_A</span><span class="p">,</span>
             <span class="n">symbols_B</span><span class="o">=</span><span class="n">symbols_B</span><span class="p">,</span>
-            <span class="n">a_idx</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">),</span>
-            <span class="n">b_idx</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">,</span> <span class="n">nA</span> <span class="o">+</span> <span class="n">B0</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">),</span>
+            <span class="n">a_idx</span><span class="o">=</span><span class="n">a_idx</span><span class="p">,</span>
+            <span class="n">b_idx</span><span class="o">=</span><span class="n">b_idx</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">],</span> <span class="n">separations</span><span class="p">)</span>
@@ -2015,10 +2206,18 @@
             <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">engine</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
-        <span class="c1"># Phase 2: globally stratify by energy (energy-stratified spacing).</span>
+        <span class="c1"># Phase 2: globally down-select the pooled candidates.</span>
         <span class="k">if</span> <span class="n">global_strat</span><span class="p">:</span>
-            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_stratify</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
-            <span class="n">candidates</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
+                <span class="n">candidates</span><span class="p">,</span>
+                <span class="n">orient_data</span><span class="p">,</span>
+                <span class="n">symbols_fixed</span><span class="p">,</span>
+                <span class="n">symbols_movable</span><span class="p">,</span>
+                <span class="n">fixed_idx</span><span class="p">,</span>
+                <span class="n">movable_idx</span><span class="p">,</span>
+                <span class="n">P</span><span class="p">,</span>
+                <span class="n">rng</span><span class="p">,</span>
+            <span class="p">)</span>
         <span class="n">candidates</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
 
         <span class="c1"># Phase 3: build the selected candidates.</span>

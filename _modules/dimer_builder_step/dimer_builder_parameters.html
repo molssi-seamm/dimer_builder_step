@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
+    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=3aef2a18"></script>
+    <script src="../../_static/documentation_options.js?v=0d17a072"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.20" />
+  <meta name="docsearch:version" content="2026.7.23" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -792,6 +792,45 @@
                 <span class="s2">&quot;orientation must have to be kept (defaults to ~kBT at 300 K). For &quot;</span>
                 <span class="s2">&quot;&#39;downweight by depth&#39;, the half-weight depth. Ignored when &quot;</span>
                 <span class="s2">&quot;orientation weighting is &#39;none&#39;.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;selection method&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;descriptor diversity&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;energy bins&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Down-select by:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;How to down-select the pooled candidate configurations for &quot;</span>
+                <span class="s2">&quot;&#39;energy-stratified&#39; spacing (all target about &#39;target &quot;</span>
+                <span class="s2">&quot;configurations&#39;). &#39;energy bins + diversity&#39; bins by interaction &quot;</span>
+                <span class="s2">&quot;energy (flat in energy) and, within each bin, keeps a &quot;</span>
+                <span class="s2">&quot;geometrically diverse, de-duplicated subset (DIRECT clustering of &quot;</span>
+                <span class="s2">&quot;the geometric collective variables). &#39;descriptor diversity&#39; is a &quot;</span>
+                <span class="s2">&quot;single global DIRECT clustering over those variables PLUS the &quot;</span>
+                <span class="s2">&quot;interaction energy (scaled by &#39;energy weight&#39;) -- maximally &quot;</span>
+                <span class="s2">&quot;diverse, but flatness depends on the weight. &#39;energy bins&#39; caps &quot;</span>
+                <span class="s2">&quot;each energy bin equally with a random pick (flat in energy, no &quot;</span>
+                <span class="s2">&quot;geometric de-duplication).&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;energy weight&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">8.0</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Energy weight:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;For the &#39;descriptor diversity&#39; selection: how strongly the &quot;</span>
+                <span class="s2">&quot;interaction energy counts relative to each geometric collective &quot;</span>
+                <span class="s2">&quot;variable in the clustering (1 = equal; larger keeps the sample &quot;</span>
+                <span class="s2">&quot;flatter in energy at the cost of some geometric diversity).&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;number of energy bins&quot;</span><span class="p">:</span> <span class="p">{</span>

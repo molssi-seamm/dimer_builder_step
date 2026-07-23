@@ -91,29 +91,43 @@ long-range tail -- so the training set should cover that whole energy range
 evenly, instead of piling most configurations in the shallow, nearly
 non-interacting region that uniform sampling produces.
 
-It works by pooling candidate configurations from *all* orientations, sorting
-them into interaction-energy bins, and keeping the same number from each bin:
+It works by pooling candidate configurations from *all* orientations and then
+down-selecting about **Target configurations** of them. **Down-select by**
+chooses how:
+
+* ``energy bins + diversity`` (default) -- sort the candidates into interaction-
+  energy bins (flat in energy) and, within each bin, keep a *geometrically
+  diverse, de-duplicated* subset by clustering the collective variables
+  (separation, approach direction, relative orientation, closest contact). This
+  gives a set that is flat in energy, reaches deep into the attractive well, and
+  is not dominated by near-identical geometries.
+* ``descriptor diversity`` -- a single global clustering (the DIRECT method) over
+  those collective variables **plus** the interaction energy, keeping one per
+  cluster. **Energy weight** sets how strongly ΔE counts relative to each
+  geometric variable (larger = flatter in energy, less geometric spread). This
+  maximizes geometric diversity but the energy flatness depends on the weight.
+* ``energy bins`` -- energy bins with a plain random pick per bin (flat in
+  energy, no geometric de-duplication).
+
+Other controls:
 
 * **Number of energy bins** -- how many ΔE bins to spread the kept
-  configurations across.
-* **Target configurations** -- the approximate total to keep (the per-bin cap
-  is this divided by the number of bins). Deeply bound geometries are rare, so
-  those bins -- and hence the total -- may come out smaller; raise **Number of
-  orientations** to find more deep configurations and fill them.
+  configurations across (the two binned methods).
+* **Target configurations** -- the approximate total to keep. Deeply bound
+  geometries are rare, so the total may come out smaller; raise **Number of
+  orientations** to find more deep configurations.
 * **ΔE levels** -- sets the energy window. The most repulsive value (default
   ``+5*kBT``) caps the wall, so no configuration is pushed to an absurd
   repulsive energy; the symbols ``De`` (well depth) and ``kBT`` (thermal energy
   at the **Sampling temperature**) may be used.
 * **Weight orientations by well depth** -- an optional pre-filter. The default
-  ``none`` keeps every orientation and lets the energy stratification do the
-  balancing; ``reject shallow orientations`` / ``downweight by depth`` bias
-  toward the more strongly bound orientations first (using **Minimum well
-  depth**).
+  ``none`` keeps every orientation; ``reject shallow orientations`` /
+  ``downweight by depth`` bias toward the more strongly bound orientations first
+  (using **Minimum well depth**).
 
 Because the interaction energy varies almost entirely at short range, a
 flat-in-energy set naturally has most of its configurations at short
-separations; that is expected. (Note that flat-*in-energy* does not by itself
-make the *orientations* diverse -- that is a separate, planned selection step.)
+separations; that is expected.
 
 What is stored
 ==============

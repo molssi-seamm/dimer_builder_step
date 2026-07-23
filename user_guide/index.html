@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.20 documentation</title>
+    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=3aef2a18"></script>
+    <script src="../_static/documentation_options.js?v=0d17a072"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -55,7 +55,7 @@
     <link rel="prev" title="Getting Started" href="../getting_started/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.20" />
+  <meta name="docsearch:version" content="2026.7.23" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -592,29 +592,43 @@ queried – the repulsive wall, the bottom of the attractive well, and the
 long-range tail – so the training set should cover that whole energy range
 evenly, instead of piling most configurations in the shallow, nearly
 non-interacting region that uniform sampling produces.</p>
-<p>It works by pooling candidate configurations from <em>all</em> orientations, sorting
-them into interaction-energy bins, and keeping the same number from each bin:</p>
+<p>It works by pooling candidate configurations from <em>all</em> orientations and then
+down-selecting about <strong>Target configurations</strong> of them. <strong>Down-select by</strong>
+chooses how:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">energy</span> <span class="pre">bins</span> <span class="pre">+</span> <span class="pre">diversity</span></code> (default) – sort the candidates into interaction-
+energy bins (flat in energy) and, within each bin, keep a <em>geometrically
+diverse, de-duplicated</em> subset by clustering the collective variables
+(separation, approach direction, relative orientation, closest contact). This
+gives a set that is flat in energy, reaches deep into the attractive well, and
+is not dominated by near-identical geometries.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">descriptor</span> <span class="pre">diversity</span></code> – a single global clustering (the DIRECT method) over
+those collective variables <strong>plus</strong> the interaction energy, keeping one per
+cluster. <strong>Energy weight</strong> sets how strongly ΔE counts relative to each
+geometric variable (larger = flatter in energy, less geometric spread). This
+maximizes geometric diversity but the energy flatness depends on the weight.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">energy</span> <span class="pre">bins</span></code> – energy bins with a plain random pick per bin (flat in
+energy, no geometric de-duplication).</p></li>
+</ul>
+<p>Other controls:</p>
 <ul class="simple">
 <li><p><strong>Number of energy bins</strong> – how many ΔE bins to spread the kept
-configurations across.</p></li>
-<li><p><strong>Target configurations</strong> – the approximate total to keep (the per-bin cap
-is this divided by the number of bins). Deeply bound geometries are rare, so
-those bins – and hence the total – may come out smaller; raise <strong>Number of
-orientations</strong> to find more deep configurations and fill them.</p></li>
+configurations across (the two binned methods).</p></li>
+<li><p><strong>Target configurations</strong> – the approximate total to keep. Deeply bound
+geometries are rare, so the total may come out smaller; raise <strong>Number of
+orientations</strong> to find more deep configurations.</p></li>
 <li><p><strong>ΔE levels</strong> – sets the energy window. The most repulsive value (default
 <code class="docutils literal notranslate"><span class="pre">+5*kBT</span></code>) caps the wall, so no configuration is pushed to an absurd
 repulsive energy; the symbols <code class="docutils literal notranslate"><span class="pre">De</span></code> (well depth) and <code class="docutils literal notranslate"><span class="pre">kBT</span></code> (thermal energy
 at the <strong>Sampling temperature</strong>) may be used.</p></li>
 <li><p><strong>Weight orientations by well depth</strong> – an optional pre-filter. The default
-<code class="docutils literal notranslate"><span class="pre">none</span></code> keeps every orientation and lets the energy stratification do the
-balancing; <code class="docutils literal notranslate"><span class="pre">reject</span> <span class="pre">shallow</span> <span class="pre">orientations</span></code> / <code class="docutils literal notranslate"><span class="pre">downweight</span> <span class="pre">by</span> <span class="pre">depth</span></code> bias
-toward the more strongly bound orientations first (using <strong>Minimum well
-depth</strong>).</p></li>
+<code class="docutils literal notranslate"><span class="pre">none</span></code> keeps every orientation; <code class="docutils literal notranslate"><span class="pre">reject</span> <span class="pre">shallow</span> <span class="pre">orientations</span></code> /
+<code class="docutils literal notranslate"><span class="pre">downweight</span> <span class="pre">by</span> <span class="pre">depth</span></code> bias toward the more strongly bound orientations first
+(using <strong>Minimum well depth</strong>).</p></li>
 </ul>
 <p>Because the interaction energy varies almost entirely at short range, a
 flat-in-energy set naturally has most of its configurations at short
-separations; that is expected. (Note that flat-<em>in-energy</em> does not by itself
-make the <em>orientations</em> diverse – that is a separate, planned selection step.)</p>
+separations; that is expected.</p>
 </section>
 </section>
 <section id="what-is-stored">
