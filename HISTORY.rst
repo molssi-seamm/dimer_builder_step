@@ -2,6 +2,24 @@
 History
 =======
 
+2026.7.23 -- Diverse down-selection of the sampled dimers
+    * Energy-stratified sampling can now keep a **geometrically diverse,
+      de-duplicated** set rather than just a flat-in-energy one, so redundant
+      near-identical configurations are dropped and distinct binding geometries
+      are all represented. A new **Down-select by** control chooses how the
+      pooled candidates are reduced to about **Target configurations**:
+
+        - *energy bins + diversity* (the new default) keeps the flat-in-energy
+          bins and, within each bin, selects a diverse subset by clustering the
+          configurations' geometry (separation, approach direction, relative
+          orientation, and contacts);
+        - *descriptor diversity* clusters globally over that geometry together
+          with the interaction energy (weighted by **Energy weight**) -- the
+          most diverse, with energy flatness controlled by the weight; and
+        - *energy bins* is the previous flat-in-energy behavior.
+    * This follows the DIRECT selection method (Qi et al., npj Comput. Mater.
+      2024) and adds scikit-learn as a dependency.
+
 2026.7.20 -- Energy-stratified sampling and sampling diagnostics
     * Added an **energy-stratified** spacing (with the energy contact method) that
       produces a set of dimers **flat in interaction energy** — evenly covering

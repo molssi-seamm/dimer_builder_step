@@ -299,6 +299,45 @@ class DimerBuilderParameters(seamm.Parameters):
                 "orientation weighting is 'none'."
             ),
         },
+        "selection method": {
+            "default": "energy bins + diversity",
+            "kind": "enum",
+            "default_units": "",
+            "enumeration": (
+                "energy bins + diversity",
+                "descriptor diversity",
+                "energy bins",
+            ),
+            "format_string": "",
+            "description": "Down-select by:",
+            "help_text": (
+                "How to down-select the pooled candidate configurations for "
+                "'energy-stratified' spacing (all target about 'target "
+                "configurations'). 'energy bins + diversity' bins by interaction "
+                "energy (flat in energy) and, within each bin, keeps a "
+                "geometrically diverse, de-duplicated subset (DIRECT clustering of "
+                "the geometric collective variables). 'descriptor diversity' is a "
+                "single global DIRECT clustering over those variables PLUS the "
+                "interaction energy (scaled by 'energy weight') -- maximally "
+                "diverse, but flatness depends on the weight. 'energy bins' caps "
+                "each energy bin equally with a random pick (flat in energy, no "
+                "geometric de-duplication)."
+            ),
+        },
+        "energy weight": {
+            "default": 8.0,
+            "kind": "float",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Energy weight:",
+            "help_text": (
+                "For the 'descriptor diversity' selection: how strongly the "
+                "interaction energy counts relative to each geometric collective "
+                "variable in the clustering (1 = equal; larger keeps the sample "
+                "flatter in energy at the cost of some geometric diversity)."
+            ),
+        },
         "number of energy bins": {
             "default": 12,
             "kind": "integer",

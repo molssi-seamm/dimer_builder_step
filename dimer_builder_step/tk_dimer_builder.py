@@ -92,6 +92,7 @@ class TkDimerBuilder(seamm.TkNode):
             "input mode",
             "spacing",
             "contact method",
+            "selection method",
             "orientation weighting",
             "monomer A configurations",
             "monomer B configurations",
@@ -181,8 +182,13 @@ class TkDimerBuilder(seamm.TkNode):
             add("number of separations")  # ΔE(R) profile resolution
             add("energy levels")
             add("sampling temperature")
-            add("number of energy bins")
+            add("selection method")
             add("target configurations")
+            selection = self["selection method"].get()
+            if selection in ("energy bins", "energy bins + diversity"):
+                add("number of energy bins")
+            if selection == "descriptor diversity":
+                add("energy weight")
             if mode == "two monomer sets":
                 add("orientation weighting")
                 if self["orientation weighting"].get() != "none":
