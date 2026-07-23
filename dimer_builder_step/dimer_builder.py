@@ -370,6 +370,15 @@ class DimerBuilder(seamm.Node):
         )
         printer.important(__(text, indent=4 * " "))
 
+        split = stats.get("selection")
+        if split is not None and split.get("tail", 0) > 0:
+            text = (
+                f"Of these, {split['core']} came from the energy-stratified "
+                f"selection and {split['tail']} from the long-range distance "
+                f"coverage (tail floor + asymptote anchors)."
+            )
+            printer.important(__(text, indent=4 * " "))
+
         if stats.get("model_chemistry"):
             text = (
                 f"The contact distances were found from the energy using the model "
@@ -1035,7 +1044,18 @@ class DimerBuilder(seamm.Node):
                 out.append((float(d), e))
         return out
 
-    def _global_stratify(self, dE_values, P, rng):
+    @staticmethod
+    def _core_target(P, target):
+        """Number of configurations the energy core should select.
+
+        ``target`` (the budget left after the tail floor/anchors are reserved)
+        overrides 'target configurations' when given, so the tail coverage comes
+        *out of* the total rather than adding to it.
+        """
+        t = int(P["target configurations"]) if target is None else int(target)
+        return max(t, 1)
+
+    def _global_stratify(self, dE_values, P, rng, target=None):
         """Indices of a flat-in-energy subset of the pooled candidates.
 
         Bins the pooled interaction energies across [min, repulsive cap] into
@@ -1049,7 +1069,7 @@ class DimerBuilder(seamm.Node):
         if dE.size == 0:
             return []
         n_bins = max(int(P["number of energy bins"]), 1)
-        per_bin = max(int(P["target configurations"]) // n_bins, 1)
+        per_bin = max(self._core_target(P, target) // n_bins, 1)
         lo = float(dE.min())
         cap = self._repulsive_cap(P)
         hi = float(cap) if (cap is not None and cap > lo) else float(dE.max())
@@ -1161,7 +1181,15 @@ class DimerBuilder(seamm.Node):
         return sorted(keep)
 
     def _direct_select(
-        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+        self,
+        candidates,
+        orient_data,
+        symbols_A,
+        symbols_B,
+        a_idx,
+        b_idx,
+        P,
+        target=None,
     ):
         """Method A: one global DIRECT clustering over the CVs **plus ΔE**.
 
@@ -1170,7 +1198,7 @@ class DimerBuilder(seamm.Node):
         geometries collapse (de-duplication) and the kept set spreads over both
         axes. Returns the kept indices into ``candidates``.
         """
-        target = max(int(P["target configurations"]), 1)
+        target = self._core_target(P, target)
         if len(candidates) <= target:
             return list(range(len(candidates)))
         dimers = self._candidate_dimers(
@@ -1181,7 +1209,15 @@ class DimerBuilder(seamm.Node):
         return self._cluster_pick(dimers, dE, target, weight)
 
     def _select_within_bins(
-        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+        self,
+        candidates,
+        orient_data,
+        symbols_A,
+        symbols_B,
+        a_idx,
+        b_idx,
+        P,
+        target=None,
     ):
         """Method B: flat-in-energy bins, DIRECT-diversify the geometry per bin.
 
@@ -1194,7 +1230,7 @@ class DimerBuilder(seamm.Node):
         if dE.size == 0:
             return []
         n_bins = max(int(P["number of energy bins"]), 1)
-        per_bin = max(int(P["target configurations"]) // n_bins, 1)
+        per_bin = max(self._core_target(P, target) // n_bins, 1)
         lo = float(dE.min())
         cap = self._repulsive_cap(P)
         hi = float(cap) if (cap is not None and cap > lo) else float(dE.max())
@@ -1220,46 +1256,80 @@ class DimerBuilder(seamm.Node):
     def _select_pool(
         self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P, rng
     ):
-        """Down-select the pooled candidates by the chosen 'selection method'.
+        """Down-select the pooled candidates to about 'target configurations'.
 
-        Returns the kept subset of ``candidates`` (both methods target about
-        'target configurations').
+        The long-range tail coverage (distance floor + asymptote anchors) is
+        reserved *first* and comes **out of** the total budget -- it is not
+        additive -- so the energy-stratified/DIRECT core selects only the
+        remaining budget from the candidates the tail did not already take.
+        Returns ``(kept_candidates, split)`` where ``split`` is
+        ``{"core": n, "tail": n}`` so the caller can report how the total splits.
         """
+        target = self._core_target(P, None)
+        tail_on = self._truthy(P.get("tail coverage", "no"))
+        tail_keep = set()
+        if tail_on:
+            tail_keep = self._tail_selection(
+                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            )
+
+        # The core selects the remaining budget from the candidates the tail did
+        # not already take (so tail + core ≈ target, not target + tail).
+        core_target = max(target - len(tail_keep), 1)
+        avail_idx = [i for i in range(len(candidates)) if i not in tail_keep]
+        avail = [candidates[i] for i in avail_idx]
+
         method = P.get("selection method", "energy bins")
         if method == "descriptor diversity":
-            keep = self._direct_select(
-                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            local = self._direct_select(
+                avail,
+                orient_data,
+                symbols_A,
+                symbols_B,
+                a_idx,
+                b_idx,
+                P,
+                target=core_target,
             )
         elif method == "energy bins + diversity":
-            keep = self._select_within_bins(
-                candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            local = self._select_within_bins(
+                avail,
+                orient_data,
+                symbols_A,
+                symbols_B,
+                a_idx,
+                b_idx,
+                P,
+                target=core_target,
             )
         else:
-            keep = self._global_stratify([c[2] for c in candidates], P, rng)
-
-        if self._truthy(P.get("tail coverage", "no")):
-            keep = self._add_distance_coverage(
-                candidates, keep, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            local = self._global_stratify(
+                [c[2] for c in avail], P, rng, target=core_target
             )
-        return [candidates[i] for i in sorted(set(keep))]
+        core_keep = {avail_idx[j] for j in local}
 
-    def _add_distance_coverage(
-        self, candidates, keep, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+        final = sorted(tail_keep | core_keep)
+        split = {"core": len(core_keep), "tail": len(tail_keep)}
+        return [candidates[i] for i in final], split
+
+    def _tail_selection(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
     ):
-        """Supplement the energy-selected core with long-range distance coverage.
+        """Long-range distance coverage, selected independently of energy.
 
-        Energy-flat selection starves the weak tail (5+ Å ≈ 0 ΔE), so this adds,
-        independent of interaction strength: (1) a **distance-coverage floor** --
-        at least 'tail configurations per bin' in every 'tail spacing' bin from
-        'tail minimum separation' to the maximum separation; and (2) a few
-        **asymptote anchors** between the maximum and 'anchor separation' to pin
-        E → 0 at large distance. Extra configurations are chosen for geometric
-        diversity (over orientations). Returns the augmented set of indices.
+        Energy-flat selection starves the weak tail (5+ Å ≈ 0 ΔE), so this
+        guarantees, independent of interaction strength: (1) a
+        **distance-coverage floor** -- 'tail configurations per bin' in every
+        'tail spacing' bin from 'tail minimum separation' to the maximum
+        separation; and (2) **asymptote anchors** -- 'asymptote anchors' configs
+        between the maximum and 'anchor separation' to pin E → 0 at large
+        distance. Both are chosen for geometric diversity (over orientations).
+        Returns the set of selected indices into ``candidates``.
         """
         d = np.array([c[1] for c in candidates], dtype=float)
-        keep = set(keep)
+        keep = set()
 
-        def fill(pool_idx, count):
+        def pick(pool_idx, count):
             """Add up to `count` geometrically-diverse candidates from pool_idx."""
             avail = [i for i in pool_idx if i not in keep]
             if not avail or count <= 0:
@@ -1283,8 +1353,7 @@ class DimerBuilder(seamm.Node):
         while per_bin > 0 and edge < near_max - 1.0e-6:
             hi = min(edge + spacing, near_max)
             members = np.where((d >= edge) & (d < hi))[0]
-            have = sum(1 for i in members if i in keep)
-            fill(members, per_bin - have)
+            pick(members, per_bin)
             edge = hi
 
         # (2) asymptote anchors over (maximum separation, anchor separation]
@@ -1292,10 +1361,9 @@ class DimerBuilder(seamm.Node):
         if n_anchors > 0:
             anchor_max = P["anchor separation"].to("Å").magnitude
             members = np.where((d > near_max) & (d <= anchor_max))[0]
-            already = sum(1 for i in members if i in keep)
-            fill(members, n_anchors - already)
+            pick(members, n_anchors)
 
-        return sorted(keep)
+        return keep
 
     @staticmethod
     def _make_interpolator(ds, dE):
@@ -1612,8 +1680,9 @@ class DimerBuilder(seamm.Node):
         # Phase 2: globally down-select the pooled candidates.
         a_idx = np.arange(nA)
         b_idx = np.arange(nA, nA + B0.n_atoms)
+        split = None
         if global_strat:
-            candidates = self._select_pool(
+            candidates, split = self._select_pool(
                 candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P, rng
             )
         candidates.sort(key=lambda c: (c[0], c[1]))
@@ -1638,6 +1707,7 @@ class DimerBuilder(seamm.Node):
 
         stats = self._stats(name, P["number of orientations"], separations)
         stats["ensemble"] = ensemble
+        stats["selection"] = split
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls
@@ -1770,8 +1840,9 @@ class DimerBuilder(seamm.Node):
                 engine.close()
 
         # Phase 2: globally down-select the pooled candidates.
+        split = None
         if global_strat:
-            candidates = self._select_pool(
+            candidates, split = self._select_pool(
                 candidates,
                 orient_data,
                 symbols_fixed,
@@ -1803,6 +1874,7 @@ class DimerBuilder(seamm.Node):
 
         stats = self._stats(name, len(orient_data), separations)
         stats["ensemble"] = ensemble
+        stats["selection"] = split
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls

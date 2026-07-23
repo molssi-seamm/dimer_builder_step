@@ -412,16 +412,19 @@ class DimerBuilderParameters(seamm.Parameters):
             ),
         },
         "tail configurations per bin": {
-            "default": 2,
+            "default": 5,
             "kind": "integer",
             "default_units": "",
             "enumeration": tuple(),
             "format_string": "",
             "description": "Tail configurations per bin:",
             "help_text": (
-                "The minimum number of configurations to keep in each separation "
-                "bin of the distance-coverage floor (chosen for geometric diversity "
-                "when the energy selection did not already supply them)."
+                "The number of configurations to keep in each separation bin of "
+                "the distance-coverage floor (chosen for geometric diversity). The "
+                "tail floor and anchors come OUT of 'target configurations' (they "
+                "are not added on top), so raise the target to keep the same "
+                "energy-region coverage. ~5-8 per bin is a good starting density "
+                "for the constantly-traversed 5-8 Å region."
             ),
         },
         "asymptote anchors": {
