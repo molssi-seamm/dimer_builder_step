@@ -272,6 +272,14 @@ class DimerBuilder(seamm.Node):
                     f"over the range set by '{P['energy levels']}' and capping each "
                     f"bin equally (flat in interaction energy)."
                 )
+            if self._truthy(P.get("tail coverage", "no")):
+                text += (
+                    f" A long-range distance-coverage floor from "
+                    f"{P['tail minimum separation']} to {P['maximum separation']} "
+                    f"and {P['asymptote anchors']} asymptote anchors out to "
+                    f"{P['anchor separation']} are added to sample the weak tail "
+                    f"and pin the energy to zero at large separation."
+                )
         else:
             text += (
                 f" For each, locate the contact distance using the "
@@ -909,7 +917,10 @@ class DimerBuilder(seamm.Node):
         'innermost gap' is not used here -- it applies only to the vdW-contact /
         geometric spacings.
         """
-        max_sep = P["maximum separation"].to("Å").magnitude
+        # Extend the outward scan to the anchor separation when tail coverage is
+        # on, so the ≈0 far tail (and its far-point reference) reaches out to the
+        # asymptote anchors. Same number of points -> no extra engine calls.
+        max_sep = self._outer_separation(P)
         n = max(int(P["number of separations"]), 11)
         floor = max(seed - 2.0, 1.0)  # keep separations physically sane
         hartree_to_kJmol = Q_(1.0, "hartree").to("kJ/mol").magnitude
@@ -922,7 +933,7 @@ class DimerBuilder(seamm.Node):
         # 1. Locate the energy minimum; the vdW seed only brackets the search.
         anchor = self._energy_anchor(engine, assemble, seed, P)
 
-        # 2. Outward branch: anchor -> maximum separation (tail + far reference).
+        # 2. Outward branch: anchor -> outer separation (tail + far reference).
         d_hi = max_sep if max_sep > anchor + 0.5 else anchor + 3.0
         ds = list(np.linspace(anchor, d_hi, n))
         es = [energy_at(d) for d in ds]
@@ -994,6 +1005,15 @@ class DimerBuilder(seamm.Node):
         levels = self._energy_levels(0.0, self._kBT(P), P)
         positive = [t for t in levels if t > 0.0]
         return max(positive) if positive else None
+
+    def _outer_separation(self, P):
+        """The outer scan bound: the anchor separation when tail coverage is on,
+        else the maximum separation, so the ≈0 far tail is sampled out to where
+        the asymptote anchors live."""
+        max_sep = P["maximum separation"].to("Å").magnitude
+        if self._truthy(P.get("tail coverage", "no")):
+            return max(max_sep, P["anchor separation"].to("Å").magnitude)
+        return max_sep
 
     def _energy_candidates(self, ds, dE, P):
         """Dense (distance, ΔE) candidate points from one orientation's profile.
@@ -1216,7 +1236,66 @@ class DimerBuilder(seamm.Node):
             )
         else:
             keep = self._global_stratify([c[2] for c in candidates], P, rng)
-        return [candidates[i] for i in keep]
+
+        if self._truthy(P.get("tail coverage", "no")):
+            keep = self._add_distance_coverage(
+                candidates, keep, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+            )
+        return [candidates[i] for i in sorted(set(keep))]
+
+    def _add_distance_coverage(
+        self, candidates, keep, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+    ):
+        """Supplement the energy-selected core with long-range distance coverage.
+
+        Energy-flat selection starves the weak tail (5+ Å ≈ 0 ΔE), so this adds,
+        independent of interaction strength: (1) a **distance-coverage floor** --
+        at least 'tail configurations per bin' in every 'tail spacing' bin from
+        'tail minimum separation' to the maximum separation; and (2) a few
+        **asymptote anchors** between the maximum and 'anchor separation' to pin
+        E → 0 at large distance. Extra configurations are chosen for geometric
+        diversity (over orientations). Returns the augmented set of indices.
+        """
+        d = np.array([c[1] for c in candidates], dtype=float)
+        keep = set(keep)
+
+        def fill(pool_idx, count):
+            """Add up to `count` geometrically-diverse candidates from pool_idx."""
+            avail = [i for i in pool_idx if i not in keep]
+            if not avail or count <= 0:
+                return
+            if len(avail) <= count:
+                keep.update(avail)
+                return
+            sub = [candidates[i] for i in avail]
+            dimers = self._candidate_dimers(
+                sub, orient_data, symbols_A, symbols_B, a_idx, b_idx
+            )
+            local = self._cluster_pick(dimers, None, count, 1.0)
+            keep.update(avail[j] for j in local)
+
+        # (1) distance-coverage floor over [tail_min, maximum separation]
+        tail_min = P["tail minimum separation"].to("Å").magnitude
+        near_max = P["maximum separation"].to("Å").magnitude
+        spacing = max(P["tail spacing"].to("Å").magnitude, 1.0e-3)
+        per_bin = max(int(P["tail configurations per bin"]), 0)
+        edge = tail_min
+        while per_bin > 0 and edge < near_max - 1.0e-6:
+            hi = min(edge + spacing, near_max)
+            members = np.where((d >= edge) & (d < hi))[0]
+            have = sum(1 for i in members if i in keep)
+            fill(members, per_bin - have)
+            edge = hi
+
+        # (2) asymptote anchors over (maximum separation, anchor separation]
+        n_anchors = max(int(P["asymptote anchors"]), 0)
+        if n_anchors > 0:
+            anchor_max = P["anchor separation"].to("Å").magnitude
+            members = np.where((d > near_max) & (d <= anchor_max))[0]
+            already = sum(1 for i in members if i in keep)
+            fill(members, n_anchors - already)
+
+        return sorted(keep)
 
     @staticmethod
     def _make_interpolator(ds, dE):

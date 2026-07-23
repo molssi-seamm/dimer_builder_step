@@ -83,6 +83,12 @@ def _P(**overrides):
         "energy weight": 8.0,
         "number of energy bins": 12,
         "target configurations": 300,
+        "tail coverage": "no",
+        "tail minimum separation": Q_(4.0, "Å"),
+        "tail spacing": Q_(0.5, "Å"),
+        "tail configurations per bin": 2,
+        "asymptote anchors": 20,
+        "anchor separation": Q_(15.0, "Å"),
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
@@ -525,6 +531,43 @@ def test_build_energy_bins_plus_diversity_end_to_end(db_two_waters, monkeypatch)
     nz = counts[counts > 0].astype(float)
     assert nz.std() / nz.mean() < 0.6  # still flat in energy (guaranteed by bins)
     assert dE.max() <= cap + 1e-6
+
+
+def test_add_distance_coverage_floor_and_anchors():
+    """The tail floor fills every near-tail bin and adds far-separation anchors."""
+    node = dimer_builder_step.DimerBuilder()
+    water = np.array([[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]])
+
+    def rebuild(d):
+        return np.vstack([water, water + np.array([0.0, 0.0, d])])
+
+    orient_data = [{"rebuild": rebuild}]
+    cands = [(0, float(d), 0.0) for d in np.arange(4.0, 15.01, 0.2)]
+    P = _P(
+        **{
+            "tail coverage": "yes",
+            "tail minimum separation": Q_(4.0, "Å"),
+            "tail spacing": Q_(1.0, "Å"),
+            "tail configurations per bin": 2,
+            "asymptote anchors": 5,
+            "anchor separation": Q_(15.0, "Å"),
+            "maximum separation": Q_(10.0, "Å"),
+        }
+    )
+    keep = node._add_distance_coverage(
+        cands,
+        [],
+        orient_data,
+        ["O", "H", "H"],
+        ["O", "H", "H"],
+        np.arange(3),
+        np.arange(3, 6),
+        P,
+    )
+    dk = np.array([cands[i][1] for i in keep])
+    for lo in range(4, 10):  # every 1 Å bin in [4,10) is covered
+        assert np.sum((dk >= lo) & (dk < lo + 1)) >= 2
+    assert np.sum(dk > 10.0) >= 5  # asymptote anchors beyond max separation
 
 
 def test_accept_orientation_reject_and_none():

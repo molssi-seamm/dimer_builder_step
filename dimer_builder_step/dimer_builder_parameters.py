@@ -368,6 +368,89 @@ class DimerBuilderParameters(seamm.Parameters):
                 "Increase the number of orientations to fill the deep bins."
             ),
         },
+        "tail coverage": {
+            "default": "yes",
+            "kind": "boolean",
+            "default_units": "",
+            "enumeration": ("yes", "no"),
+            "format_string": "",
+            "description": "Add long-range distance coverage:",
+            "help_text": (
+                "Energy-stratified selection is flat in energy, which starves the "
+                "weak long-range tail (5+ Å maps to ≈0 ΔE, so it gets only ~one "
+                "bin's worth) even though molecular dynamics traverses it "
+                "constantly. With this on, the kept set is supplemented with a "
+                "distance-coverage floor and a few far-separation anchors so the "
+                "tail is sampled independently of interaction strength: energy-flat "
+                "where the interaction is strong, distance-dense in the weak tail."
+            ),
+        },
+        "tail minimum separation": {
+            "default": 4.0,
+            "kind": "float",
+            "default_units": "Å",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Tail coverage from:",
+            "help_text": (
+                "The start of the distance-coverage floor. From here out to the "
+                "maximum separation the kept set is guaranteed a minimum number of "
+                "configurations in each separation bin (over a spread of "
+                "orientations), on top of the energy-based selection."
+            ),
+        },
+        "tail spacing": {
+            "default": 0.5,
+            "kind": "float",
+            "default_units": "Å",
+            "enumeration": tuple(),
+            "format_string": ".2f",
+            "description": "Tail coverage spacing:",
+            "help_text": (
+                "The separation-bin width of the distance-coverage floor "
+                "(smaller = denser tail coverage)."
+            ),
+        },
+        "tail configurations per bin": {
+            "default": 2,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Tail configurations per bin:",
+            "help_text": (
+                "The minimum number of configurations to keep in each separation "
+                "bin of the distance-coverage floor (chosen for geometric diversity "
+                "when the energy selection did not already supply them)."
+            ),
+        },
+        "asymptote anchors": {
+            "default": 20,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Asymptote anchors:",
+            "help_text": (
+                "How many far-separation configurations (between the maximum "
+                "separation and the 'anchor separation', over a spread of "
+                "orientations) to add to pin the interaction energy to zero at "
+                "large distance. 0 disables them."
+            ),
+        },
+        "anchor separation": {
+            "default": 15.0,
+            "kind": "float",
+            "default_units": "Å",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Anchor separation:",
+            "help_text": (
+                "The largest center-to-center separation sampled for the asymptote "
+                "anchors (the profile is extended to here so the ≈0 tail is "
+                "represented out to this distance)."
+            ),
+        },
         "separations": {
             "default": "",
             "kind": "string",
