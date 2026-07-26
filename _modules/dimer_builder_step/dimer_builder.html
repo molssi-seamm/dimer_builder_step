@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
+    <title>dimer_builder_step.dimer_builder &#8212; SEAMM Dimer Builder Plug-in 2026.7.23.1 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=0d17a072"></script>
+    <script src="../../_static/documentation_options.js?v=ea3d18b0"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.23" />
+  <meta name="docsearch:version" content="2026.7.23.1" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -781,6 +781,14 @@
                     <span class="sa">f</span><span class="s2">&quot;over the range set by &#39;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;energy levels&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&#39; and capping each &quot;</span>
                     <span class="sa">f</span><span class="s2">&quot;bin equally (flat in interaction energy).&quot;</span>
                 <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truthy</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tail coverage&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">)):</span>
+                <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot; A long-range distance-coverage floor from &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;tail minimum separation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;maximum separation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;and </span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;asymptote anchors&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> asymptote anchors out to &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">P</span><span class="p">[</span><span class="s1">&#39;anchor separation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> are added to sample the weak tail &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;and pin the energy to zero at large separation.&quot;</span>
+                <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">text</span> <span class="o">+=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot; For each, locate the contact distance using the &quot;</span>
@@ -877,6 +885,15 @@
         <span class="p">)</span>
         <span class="n">printer</span><span class="o">.</span><span class="n">important</span><span class="p">(</span><span class="n">__</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span> <span class="o">*</span> <span class="s2">&quot; &quot;</span><span class="p">))</span>
 
+        <span class="n">split</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;selection&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">split</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">split</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tail&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Of these, </span><span class="si">{</span><span class="n">split</span><span class="p">[</span><span class="s1">&#39;core&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> came from the energy-stratified &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;selection and </span><span class="si">{</span><span class="n">split</span><span class="p">[</span><span class="s1">&#39;tail&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> from the long-range distance &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;coverage (tail floor + asymptote anchors).&quot;</span>
+            <span class="p">)</span>
+            <span class="n">printer</span><span class="o">.</span><span class="n">important</span><span class="p">(</span><span class="n">__</span><span class="p">(</span><span class="n">text</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span> <span class="o">*</span> <span class="s2">&quot; &quot;</span><span class="p">))</span>
+
         <span class="k">if</span> <span class="n">stats</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">):</span>
             <span class="n">text</span> <span class="o">=</span> <span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;The contact distances were found from the energy using the model &quot;</span>
@@ -921,6 +938,7 @@
             <span class="n">separation</span><span class="o">=</span><span class="n">geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;separation&quot;</span><span class="p">),</span>
             <span class="n">orientation</span><span class="o">=</span><span class="n">geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;orientation&quot;</span><span class="p">),</span>
             <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span>
+            <span class="n">is_tail</span><span class="o">=</span><span class="n">geometry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;is_tail&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_run_diagnostics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ensemble</span><span class="p">,</span> <span class="n">level</span><span class="p">,</span> <span class="n">title</span><span class="p">):</span>
@@ -1425,7 +1443,10 @@
 <span class="sd">        &#39;innermost gap&#39; is not used here -- it applies only to the vdW-contact /</span>
 <span class="sd">        geometric spacings.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">max_sep</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;maximum separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="c1"># Extend the outward scan to the anchor separation when tail coverage is</span>
+        <span class="c1"># on, so the ≈0 far tail (and its far-point reference) reaches out to the</span>
+        <span class="c1"># asymptote anchors. Same number of points -&gt; no extra engine calls.</span>
+        <span class="n">max_sep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_outer_separation</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
         <span class="n">n</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of separations&quot;</span><span class="p">]),</span> <span class="mi">11</span><span class="p">)</span>
         <span class="n">floor</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">seed</span> <span class="o">-</span> <span class="mf">2.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>  <span class="c1"># keep separations physically sane</span>
         <span class="n">hartree_to_kJmol</span> <span class="o">=</span> <span class="n">Q_</span><span class="p">(</span><span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;hartree&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;kJ/mol&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
@@ -1438,7 +1459,7 @@
         <span class="c1"># 1. Locate the energy minimum; the vdW seed only brackets the search.</span>
         <span class="n">anchor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_anchor</span><span class="p">(</span><span class="n">engine</span><span class="p">,</span> <span class="n">assemble</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">P</span><span class="p">)</span>
 
-        <span class="c1"># 2. Outward branch: anchor -&gt; maximum separation (tail + far reference).</span>
+        <span class="c1"># 2. Outward branch: anchor -&gt; outer separation (tail + far reference).</span>
         <span class="n">d_hi</span> <span class="o">=</span> <span class="n">max_sep</span> <span class="k">if</span> <span class="n">max_sep</span> <span class="o">&gt;</span> <span class="n">anchor</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="k">else</span> <span class="n">anchor</span> <span class="o">+</span> <span class="mf">3.0</span>
         <span class="n">ds</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="n">anchor</span><span class="p">,</span> <span class="n">d_hi</span><span class="p">,</span> <span class="n">n</span><span class="p">))</span>
         <span class="n">es</span> <span class="o">=</span> <span class="p">[</span><span class="n">energy_at</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">ds</span><span class="p">]</span>
@@ -1511,6 +1532,15 @@
         <span class="n">positive</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">levels</span> <span class="k">if</span> <span class="n">t</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">]</span>
         <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">positive</span><span class="p">)</span> <span class="k">if</span> <span class="n">positive</span> <span class="k">else</span> <span class="kc">None</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_outer_separation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The outer scan bound: the anchor separation when tail coverage is on,</span>
+<span class="sd">        else the maximum separation, so the ≈0 far tail is sampled out to where</span>
+<span class="sd">        the asymptote anchors live.&quot;&quot;&quot;</span>
+        <span class="n">max_sep</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;maximum separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truthy</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tail coverage&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">max_sep</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;anchor separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">max_sep</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_energy_candidates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds</span><span class="p">,</span> <span class="n">dE</span><span class="p">,</span> <span class="n">P</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Dense (distance, ΔE) candidate points from one orientation&#39;s profile.</span>
 
@@ -1531,7 +1561,18 @@
                 <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="nb">float</span><span class="p">(</span><span class="n">d</span><span class="p">),</span> <span class="n">e</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">out</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_global_stratify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dE_values</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">):</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_core_target</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Number of configurations the energy core should select.</span>
+
+<span class="sd">        ``target`` (the budget left after the tail floor/anchors are reserved)</span>
+<span class="sd">        overrides &#39;target configurations&#39; when given, so the tail coverage comes</span>
+<span class="sd">        *out of* the total rather than adding to it.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">])</span> <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_global_stratify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dE_values</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Indices of a flat-in-energy subset of the pooled candidates.</span>
 
 <span class="sd">        Bins the pooled interaction energies across [min, repulsive cap] into</span>
@@ -1545,7 +1586,7 @@
         <span class="k">if</span> <span class="n">dE</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">n_bins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of energy bins&quot;</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">])</span> <span class="o">//</span> <span class="n">n_bins</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_core_target</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="o">//</span> <span class="n">n_bins</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">lo</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
         <span class="n">cap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repulsive_cap</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
         <span class="n">hi</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">cap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cap</span> <span class="o">&gt;</span> <span class="n">lo</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
@@ -1657,7 +1698,15 @@
         <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">keep</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_direct_select</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">candidates</span><span class="p">,</span>
+        <span class="n">orient_data</span><span class="p">,</span>
+        <span class="n">symbols_A</span><span class="p">,</span>
+        <span class="n">symbols_B</span><span class="p">,</span>
+        <span class="n">a_idx</span><span class="p">,</span>
+        <span class="n">b_idx</span><span class="p">,</span>
+        <span class="n">P</span><span class="p">,</span>
+        <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Method A: one global DIRECT clustering over the CVs **plus ΔE**.</span>
 
@@ -1666,7 +1715,7 @@
 <span class="sd">        geometries collapse (de-duplication) and the kept set spreads over both</span>
 <span class="sd">        axes. Returns the kept indices into ``candidates``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">target</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_target</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">target</span><span class="p">:</span>
             <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">)))</span>
         <span class="n">dimers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidate_dimers</span><span class="p">(</span>
@@ -1677,7 +1726,15 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_pick</span><span class="p">(</span><span class="n">dimers</span><span class="p">,</span> <span class="n">dE</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">weight</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_select_within_bins</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">candidates</span><span class="p">,</span>
+        <span class="n">orient_data</span><span class="p">,</span>
+        <span class="n">symbols_A</span><span class="p">,</span>
+        <span class="n">symbols_B</span><span class="p">,</span>
+        <span class="n">a_idx</span><span class="p">,</span>
+        <span class="n">b_idx</span><span class="p">,</span>
+        <span class="n">P</span><span class="p">,</span>
+        <span class="n">target</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Method B: flat-in-energy bins, DIRECT-diversify the geometry per bin.</span>
 
@@ -1690,7 +1747,7 @@
         <span class="k">if</span> <span class="n">dE</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="n">n_bins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of energy bins&quot;</span><span class="p">]),</span> <span class="mi">1</span><span class="p">)</span>
-        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;target configurations&quot;</span><span class="p">])</span> <span class="o">//</span> <span class="n">n_bins</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_core_target</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="o">//</span> <span class="n">n_bins</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">lo</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
         <span class="n">cap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repulsive_cap</span><span class="p">(</span><span class="n">P</span><span class="p">)</span>
         <span class="n">hi</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">cap</span><span class="p">)</span> <span class="k">if</span> <span class="p">(</span><span class="n">cap</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">cap</span> <span class="o">&gt;</span> <span class="n">lo</span><span class="p">)</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">dE</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
@@ -1716,23 +1773,118 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_select_pool</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span>
     <span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Down-select the pooled candidates by the chosen &#39;selection method&#39;.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Down-select the pooled candidates to about &#39;target configurations&#39;.</span>
 
-<span class="sd">        Returns the kept subset of ``candidates`` (both methods target about</span>
-<span class="sd">        &#39;target configurations&#39;).</span>
+<span class="sd">        The long-range tail coverage (distance floor + asymptote anchors) is</span>
+<span class="sd">        reserved *first* and comes **out of** the total budget -- it is not</span>
+<span class="sd">        additive -- so the energy-stratified/DIRECT core selects only the</span>
+<span class="sd">        remaining budget from the candidates the tail did not already take.</span>
+<span class="sd">        Returns ``(kept_candidates, split, tail_set)`` where ``split`` is</span>
+<span class="sd">        ``{&quot;core&quot;: n, &quot;tail&quot;: n}`` so the caller can report how the total splits,</span>
+<span class="sd">        and ``tail_set`` is the subset of the returned candidate tuples chosen by</span>
+<span class="sd">        the long-range distance coverage (so diagnostics can flag them</span>
+<span class="sd">        ``is_tail`` and exclude them from the energy-flatness metric).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">target</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_core_target</span><span class="p">(</span><span class="n">P</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">tail_on</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_truthy</span><span class="p">(</span><span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tail coverage&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">))</span>
+        <span class="n">tail_keep</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">tail_on</span><span class="p">:</span>
+            <span class="n">tail_keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tail_selection</span><span class="p">(</span>
+                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+            <span class="p">)</span>
+
+        <span class="c1"># The core selects the remaining budget from the candidates the tail did</span>
+        <span class="c1"># not already take (so tail + core ≈ target, not target + tail).</span>
+        <span class="n">core_target</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">target</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">tail_keep</span><span class="p">),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">avail_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">candidates</span><span class="p">))</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">tail_keep</span><span class="p">]</span>
+        <span class="n">avail</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">avail_idx</span><span class="p">]</span>
+
         <span class="n">method</span> <span class="o">=</span> <span class="n">P</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;selection method&quot;</span><span class="p">,</span> <span class="s2">&quot;energy bins&quot;</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;descriptor diversity&quot;</span><span class="p">:</span>
-            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direct_select</span><span class="p">(</span>
-                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_direct_select</span><span class="p">(</span>
+                <span class="n">avail</span><span class="p">,</span>
+                <span class="n">orient_data</span><span class="p">,</span>
+                <span class="n">symbols_A</span><span class="p">,</span>
+                <span class="n">symbols_B</span><span class="p">,</span>
+                <span class="n">a_idx</span><span class="p">,</span>
+                <span class="n">b_idx</span><span class="p">,</span>
+                <span class="n">P</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">core_target</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">:</span>
-            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_within_bins</span><span class="p">(</span>
-                <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_within_bins</span><span class="p">(</span>
+                <span class="n">avail</span><span class="p">,</span>
+                <span class="n">orient_data</span><span class="p">,</span>
+                <span class="n">symbols_A</span><span class="p">,</span>
+                <span class="n">symbols_B</span><span class="p">,</span>
+                <span class="n">a_idx</span><span class="p">,</span>
+                <span class="n">b_idx</span><span class="p">,</span>
+                <span class="n">P</span><span class="p">,</span>
+                <span class="n">target</span><span class="o">=</span><span class="n">core_target</span><span class="p">,</span>
             <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">keep</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_stratify</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_global_stratify</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">c</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">avail</span><span class="p">],</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">core_target</span>
+            <span class="p">)</span>
+        <span class="n">core_keep</span> <span class="o">=</span> <span class="p">{</span><span class="n">avail_idx</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">local</span><span class="p">}</span>
+
+        <span class="n">final</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">tail_keep</span> <span class="o">|</span> <span class="n">core_keep</span><span class="p">)</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;core&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">core_keep</span><span class="p">),</span> <span class="s2">&quot;tail&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">tail_keep</span><span class="p">)}</span>
+        <span class="n">tail_set</span> <span class="o">=</span> <span class="p">{</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">tail_keep</span><span class="p">}</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">final</span><span class="p">],</span> <span class="n">split</span><span class="p">,</span> <span class="n">tail_set</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_tail_selection</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Long-range distance coverage, selected independently of energy.</span>
+
+<span class="sd">        Energy-flat selection starves the weak tail (5+ Å ≈ 0 ΔE), so this</span>
+<span class="sd">        guarantees, independent of interaction strength: (1) a</span>
+<span class="sd">        **distance-coverage floor** -- &#39;tail configurations per bin&#39; in every</span>
+<span class="sd">        &#39;tail spacing&#39; bin from &#39;tail minimum separation&#39; to the maximum</span>
+<span class="sd">        separation; and (2) **asymptote anchors** -- &#39;asymptote anchors&#39; configs</span>
+<span class="sd">        between the maximum and &#39;anchor separation&#39; to pin E → 0 at large</span>
+<span class="sd">        distance. Both are chosen for geometric diversity (over orientations).</span>
+<span class="sd">        Returns the set of selected indices into ``candidates``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">keep</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">pick</span><span class="p">(</span><span class="n">pool_idx</span><span class="p">,</span> <span class="n">count</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Add up to `count` geometrically-diverse candidates from pool_idx.&quot;&quot;&quot;</span>
+            <span class="n">avail</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">pool_idx</span> <span class="k">if</span> <span class="n">i</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">avail</span> <span class="ow">or</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">avail</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="n">count</span><span class="p">:</span>
+                <span class="n">keep</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">avail</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="n">sub</span> <span class="o">=</span> <span class="p">[</span><span class="n">candidates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">avail</span><span class="p">]</span>
+            <span class="n">dimers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_candidate_dimers</span><span class="p">(</span>
+                <span class="n">sub</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span>
+            <span class="p">)</span>
+            <span class="n">local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cluster_pick</span><span class="p">(</span><span class="n">dimers</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">count</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="n">keep</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">avail</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">local</span><span class="p">)</span>
+
+        <span class="c1"># (1) distance-coverage floor over [tail_min, maximum separation]</span>
+        <span class="n">tail_min</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;tail minimum separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="n">near_max</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;maximum separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+        <span class="n">spacing</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;tail spacing&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span><span class="p">,</span> <span class="mf">1.0e-3</span><span class="p">)</span>
+        <span class="n">per_bin</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;tail configurations per bin&quot;</span><span class="p">]),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">edge</span> <span class="o">=</span> <span class="n">tail_min</span>
+        <span class="k">while</span> <span class="n">per_bin</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">edge</span> <span class="o">&lt;</span> <span class="n">near_max</span> <span class="o">-</span> <span class="mf">1.0e-6</span><span class="p">:</span>
+            <span class="n">hi</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">edge</span> <span class="o">+</span> <span class="n">spacing</span><span class="p">,</span> <span class="n">near_max</span><span class="p">)</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">d</span> <span class="o">&gt;=</span> <span class="n">edge</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">d</span> <span class="o">&lt;</span> <span class="n">hi</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">pick</span><span class="p">(</span><span class="n">members</span><span class="p">,</span> <span class="n">per_bin</span><span class="p">)</span>
+            <span class="n">edge</span> <span class="o">=</span> <span class="n">hi</span>
+
+        <span class="c1"># (2) asymptote anchors over (maximum separation, anchor separation]</span>
+        <span class="n">n_anchors</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">P</span><span class="p">[</span><span class="s2">&quot;asymptote anchors&quot;</span><span class="p">]),</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_anchors</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">anchor_max</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;anchor separation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;Å&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">magnitude</span>
+            <span class="n">members</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">((</span><span class="n">d</span> <span class="o">&gt;</span> <span class="n">near_max</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">d</span> <span class="o">&lt;=</span> <span class="n">anchor_max</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">pick</span><span class="p">(</span><span class="n">members</span><span class="p">,</span> <span class="n">n_anchors</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">keep</span>
 
     <span class="nd">@staticmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_make_interpolator</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">dE</span><span class="p">):</span>
@@ -1826,20 +1978,26 @@
         <span class="n">symbols_B</span><span class="p">,</span>
         <span class="n">a_idx</span><span class="p">,</span>
         <span class="n">b_idx</span><span class="p">,</span>
+        <span class="n">tail_set</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the selected candidates into configurations.</span>
 
 <span class="sd">        ``candidates`` is a list of ``(orientation_index, distance, ΔE-or-None)``</span>
 <span class="sd">        (already selected/ordered); ``orient_data[i]`` holds that orientation&#39;s</span>
 <span class="sd">        ``rebuild(d) -&gt; coords`` closure, gap reference, well depth, and angles.</span>
+<span class="sd">        ``tail_set`` holds the candidate tuples chosen by the long-range distance</span>
+<span class="sd">        coverage; those are flagged ``is_tail`` on the diagnostics record so the</span>
+<span class="sd">        deliberately near-zero tail is excluded from the energy-flatness metric.</span>
 <span class="sd">        Shared by both input modes. Returns ``(separations, ensemble, count)``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tail_set</span> <span class="o">=</span> <span class="n">tail_set</span> <span class="ow">or</span> <span class="nb">set</span><span class="p">()</span>
         <span class="n">t_fixed</span><span class="p">,</span> <span class="n">t_movable</span> <span class="o">=</span> <span class="n">templates</span>
         <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">separations</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">ensemble</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">point_of</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">orient_index</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">dE_value</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">cand</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="n">orient_index</span><span class="p">,</span> <span class="n">d</span><span class="p">,</span> <span class="n">dE_value</span> <span class="o">=</span> <span class="n">cand</span>
             <span class="n">o</span> <span class="o">=</span> <span class="n">orient_data</span><span class="p">[</span><span class="n">orient_index</span><span class="p">]</span>
             <span class="n">coords</span> <span class="o">=</span> <span class="n">o</span><span class="p">[</span><span class="s2">&quot;rebuild&quot;</span><span class="p">](</span><span class="n">d</span><span class="p">)</span>
             <span class="n">point_of</span><span class="p">[</span><span class="n">orient_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">point_of</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">orient_index</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
@@ -1852,6 +2010,7 @@
                 <span class="s2">&quot;alpha&quot;</span><span class="p">:</span> <span class="n">o</span><span class="p">[</span><span class="s2">&quot;alpha&quot;</span><span class="p">],</span>
                 <span class="s2">&quot;beta&quot;</span><span class="p">:</span> <span class="n">o</span><span class="p">[</span><span class="s2">&quot;beta&quot;</span><span class="p">],</span>
                 <span class="s2">&quot;gamma&quot;</span><span class="p">:</span> <span class="n">o</span><span class="p">[</span><span class="s2">&quot;gamma&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;is_tail&quot;</span><span class="p">:</span> <span class="n">cand</span> <span class="ow">in</span> <span class="n">tail_set</span><span class="p">,</span>
             <span class="p">}</span>
             <span class="k">if</span> <span class="n">dE_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">geometry</span><span class="p">[</span><span class="s2">&quot;interaction_energy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dE_value</span>
@@ -2049,8 +2208,10 @@
         <span class="c1"># Phase 2: globally down-select the pooled candidates.</span>
         <span class="n">a_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">)</span>
         <span class="n">b_idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nA</span><span class="p">,</span> <span class="n">nA</span> <span class="o">+</span> <span class="n">B0</span><span class="o">.</span><span class="n">n_atoms</span><span class="p">)</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">tail_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">global_strat</span><span class="p">:</span>
-            <span class="n">candidates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
+            <span class="n">candidates</span><span class="p">,</span> <span class="n">split</span><span class="p">,</span> <span class="n">tail_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
                 <span class="n">candidates</span><span class="p">,</span> <span class="n">orient_data</span><span class="p">,</span> <span class="n">symbols_A</span><span class="p">,</span> <span class="n">symbols_B</span><span class="p">,</span> <span class="n">a_idx</span><span class="p">,</span> <span class="n">b_idx</span><span class="p">,</span> <span class="n">P</span><span class="p">,</span> <span class="n">rng</span>
             <span class="p">)</span>
         <span class="n">candidates</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">c</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
@@ -2071,10 +2232,12 @@
             <span class="n">symbols_B</span><span class="o">=</span><span class="n">symbols_B</span><span class="p">,</span>
             <span class="n">a_idx</span><span class="o">=</span><span class="n">a_idx</span><span class="p">,</span>
             <span class="n">b_idx</span><span class="o">=</span><span class="n">b_idx</span><span class="p">,</span>
+            <span class="n">tail_set</span><span class="o">=</span><span class="n">tail_set</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">P</span><span class="p">[</span><span class="s2">&quot;number of orientations&quot;</span><span class="p">],</span> <span class="n">separations</span><span class="p">)</span>
         <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;ensemble&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ensemble</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;selection&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">split</span>
         <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_model</span>
             <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;n_energy_calls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">n_energy_calls</span>
@@ -2207,8 +2370,10 @@
                 <span class="n">engine</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 
         <span class="c1"># Phase 2: globally down-select the pooled candidates.</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">tail_set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">global_strat</span><span class="p">:</span>
-            <span class="n">candidates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
+            <span class="n">candidates</span><span class="p">,</span> <span class="n">split</span><span class="p">,</span> <span class="n">tail_set</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_select_pool</span><span class="p">(</span>
                 <span class="n">candidates</span><span class="p">,</span>
                 <span class="n">orient_data</span><span class="p">,</span>
                 <span class="n">symbols_fixed</span><span class="p">,</span>
@@ -2236,10 +2401,12 @@
             <span class="n">symbols_B</span><span class="o">=</span><span class="n">symbols_movable</span><span class="p">,</span>
             <span class="n">a_idx</span><span class="o">=</span><span class="n">fixed_idx</span><span class="p">,</span>
             <span class="n">b_idx</span><span class="o">=</span><span class="n">movable_idx</span><span class="p">,</span>
+            <span class="n">tail_set</span><span class="o">=</span><span class="n">tail_set</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">stats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stats</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">orient_data</span><span class="p">),</span> <span class="n">separations</span><span class="p">)</span>
         <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;ensemble&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">ensemble</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;selection&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">split</span>
         <span class="k">if</span> <span class="n">engine</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;model_chemistry&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_energy_model</span>
             <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;n_energy_calls&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">n_energy_calls</span>

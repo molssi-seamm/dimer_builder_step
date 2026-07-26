@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.7.23 documentation</title>
+    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.7.23.1 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=0d17a072"></script>
+    <script src="_static/documentation_options.js?v=ea3d18b0"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -54,7 +54,7 @@
     <link rel="prev" title="Development Team" href="authors.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.23" />
+  <meta name="docsearch:version" content="2026.7.23.1" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -511,6 +511,36 @@
   <section id="history">
 <h1>History<a class="headerlink" href="#history" title="Link to this heading">#</a></h1>
 <dl>
+<dt>2026.7.23.1 – Long-range distance coverage for energy-stratified sampling</dt><dd><ul>
+<li><p>Energy-stratified sampling is flat in interaction energy, which starves the
+weak long-range tail (beyond ~5 Å the interaction is ≈0, so it gets only
+about one energy bin) even though molecular dynamics visits it constantly –
+leaving a machine-learned force field under-constrained and prone to an
+unphysical bump in that region. A new <strong>Add long-range distance coverage</strong>
+option (on by default) supplements the kept set, independently of
+interaction strength, with:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>a <strong>distance-coverage floor</strong> – a minimum number of configurations in
+each separation bin from <strong>Tail coverage from</strong> out to the maximum
+separation (controlled by <strong>Tail coverage spacing</strong> and <strong>Tail
+configurations per bin</strong>, chosen for geometric diversity); and</p></li>
+<li><p><strong>Asymptote anchors</strong> – a handful of far-separation configurations out
+to <strong>Anchor separation</strong> that pin the interaction energy to zero at
+large distance.</p></li>
+</ul>
+</div></blockquote>
+</li>
+<li><p>The tail configurations come <strong>out of Target configurations</strong> (they are not
+added on top), so raise the target to keep the same coverage of the strongly
+interacting region. The analysis now reports the split – how many
+configurations came from the energy-stratified selection versus the
+long-range coverage.</p></li>
+<li><p>The reported energy-flatness now describes the energy-stratified core only;
+the deliberately near-zero tail configurations are excluded so they no
+longer distort the flatness metric.</p></li>
+</ul>
+</dd>
 <dt>2026.7.23 – Diverse down-selection of the sampled dimers</dt><dd><ul>
 <li><p>Energy-stratified sampling can now keep a <strong>geometrically diverse,
 de-duplicated</strong> set rather than just a flat-in-energy one, so redundant
