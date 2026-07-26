@@ -95,6 +95,10 @@ class Dimer:
     # scan variables the builder may already have saved as properties:
     separation: Optional[float] = None   # nominal COM separation, Å
     orientation: Optional[int] = None    # orientation-seed index
+    # True for configs added by the long-range distance-coverage floor /
+    # asymptote anchors (deliberately near-zero ΔE). Excluded from the
+    # energy-flatness metric, which describes only the energy-stratified core.
+    is_tail: bool = False
 
     def __post_init__(self):
         self.xyz_A = np.asarray(self.xyz_A, dtype=float).reshape(-1, 3)
@@ -157,11 +161,22 @@ class DimerMetrics:
     approach_vec: np.ndarray           # (n, 3) unit approach vectors in A's frame
     orient_angle: np.ndarray           # (n,) angle between A,B principal axes, deg
     energy: Optional[np.ndarray]       # (n,) interaction energy, kJ/mol, or None
+    is_tail: np.ndarray = None         # (n,) bool: long-range tail-coverage config
     contact_pairs: dict = field(default_factory=dict)  # (el,el)->distances array
 
     @property
     def has_energy(self) -> bool:
         return self.energy is not None and np.isfinite(self.energy).any()
+
+    def core_energy(self) -> np.ndarray:
+        """Finite interaction energies of the energy-stratified CORE only
+        (tail-coverage configs excluded). The flatness metric is defined here:
+        the deliberately near-zero tail otherwise inflates the near-zero bin."""
+        e = self.energy
+        keep = np.isfinite(e)
+        if self.is_tail is not None:
+            keep = keep & ~self.is_tail
+        return e[keep]
 
 
 def compute_metrics(ensemble, contact_cutoff: float = 6.0) -> DimerMetrics:
@@ -181,6 +196,7 @@ def compute_metrics(ensemble, contact_cutoff: float = 6.0) -> DimerMetrics:
     avec = np.full((n, 3), np.nan)
     orient = np.full(n, np.nan)
     energies = np.full(n, np.nan)
+    is_tail = np.zeros(n, dtype=bool)
     have_E = False
     pairs: dict = {}
 
@@ -219,6 +235,7 @@ def compute_metrics(ensemble, contact_cutoff: float = 6.0) -> DimerMetrics:
         if d.energy is not None and np.isfinite(d.energy):
             energies[i] = float(d.energy)
             have_E = True
+        is_tail[i] = bool(getattr(d, "is_tail", False))
 
     contact_pairs = {k: np.asarray(v) for k, v in pairs.items()}
     return DimerMetrics(
@@ -229,6 +246,7 @@ def compute_metrics(ensemble, contact_cutoff: float = 6.0) -> DimerMetrics:
         approach_vec=avec,
         orient_angle=orient,
         energy=energies if have_E else None,
+        is_tail=is_tail,
         contact_pairs=contact_pairs,
     )
 
@@ -283,12 +301,17 @@ def summarize(metrics: DimerMetrics) -> dict:
     }
     if m.has_energy:
         e = m.energy[np.isfinite(m.energy)]
-        _, _, flat = energy_histogram(e)
+        core = m.core_energy()                 # tail-coverage configs excluded
+        _, _, flat_core = energy_histogram(core if core.size else e)
+        _, _, flat_all = energy_histogram(e)
+        n_tail = int(m.is_tail.sum()) if m.is_tail is not None else 0
         out.update(
             energy_min=float(e.min()),
             energy_mean=float(e.mean()),
             energy_frac_attractive=float((e < 0).mean()),
-            energy_flatness=flat,
+            energy_flatness=flat_core,         # CORE flatness — the headline metric
+            energy_flatness_all=flat_all,      # incl. tail (for reference)
+            n_tail=n_tail,
         )
     return out
 
@@ -440,6 +463,18 @@ def _subtitle(m: DimerMetrics) -> str:
     return sub
 
 
+def _energy_title(m: DimerMetrics) -> str:
+    """Energy-panel title: flatness CV over the CORE (tail excluded), with the
+    tail count noted so the deliberately near-zero tail doesn't look like a
+    flatness regression."""
+    core = m.core_energy()
+    e = m.energy[np.isfinite(m.energy)]
+    _, _, flat = energy_histogram(core if core.size else e)
+    n_tail = int(m.is_tail.sum()) if m.is_tail is not None else 0
+    suffix = f"; +{n_tail} tail" if n_tail else ""
+    return f"Energy distribution (core flatness CV = {flat:.2f}{suffix})"
+
+
 def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
     """Assemble all diagnostics as a single combined plotly ``go.Figure``.
 
@@ -453,11 +488,10 @@ def make_dashboard(metrics: DimerMetrics, title: str = "Dimer sampling"):
 
     m = metrics
     if m.has_energy:
-        _, _, flat = energy_histogram(m.energy[np.isfinite(m.energy)])
         titles = [
             "Separation coverage", "Contact distribution",
             "Approach direction (A frame)", "Relative orientation",
-            f"Energy distribution (flatness CV = {flat:.2f})",
+            _energy_title(m),
             "Binding-curve envelope",
         ]
         fig = make_subplots(rows=2, cols=3, subplot_titles=titles,
@@ -544,8 +578,7 @@ def panel_energy(m: DimerMetrics, title: Optional[str] = None):
     if not m.has_energy:
         return None
     if title is None:
-        _, _, flat = energy_histogram(m.energy[np.isfinite(m.energy)])
-        title = f"Energy distribution (flatness CV = {flat:.2f})"
+        title = _energy_title(m)
     return _single(lambda f: _add_energy_hist(f, m, 1, 1), m, title)
 
 

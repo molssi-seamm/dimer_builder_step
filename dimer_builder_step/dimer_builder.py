@@ -422,6 +422,7 @@ class DimerBuilder(seamm.Node):
             separation=geometry.get("separation"),
             orientation=geometry.get("orientation"),
             label=label,
+            is_tail=geometry.get("is_tail", False),
         )
 
     def _run_diagnostics(self, ensemble, level, title):
@@ -1262,8 +1263,11 @@ class DimerBuilder(seamm.Node):
         reserved *first* and comes **out of** the total budget -- it is not
         additive -- so the energy-stratified/DIRECT core selects only the
         remaining budget from the candidates the tail did not already take.
-        Returns ``(kept_candidates, split)`` where ``split`` is
-        ``{"core": n, "tail": n}`` so the caller can report how the total splits.
+        Returns ``(kept_candidates, split, tail_set)`` where ``split`` is
+        ``{"core": n, "tail": n}`` so the caller can report how the total splits,
+        and ``tail_set`` is the subset of the returned candidate tuples chosen by
+        the long-range distance coverage (so diagnostics can flag them
+        ``is_tail`` and exclude them from the energy-flatness metric).
         """
         target = self._core_target(P, None)
         tail_on = self._truthy(P.get("tail coverage", "no"))
@@ -1310,7 +1314,8 @@ class DimerBuilder(seamm.Node):
 
         final = sorted(tail_keep | core_keep)
         split = {"core": len(core_keep), "tail": len(tail_keep)}
-        return [candidates[i] for i in final], split
+        tail_set = {candidates[i] for i in tail_keep}
+        return [candidates[i] for i in final], split, tail_set
 
     def _tail_selection(
         self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
@@ -1457,20 +1462,26 @@ class DimerBuilder(seamm.Node):
         symbols_B,
         a_idx,
         b_idx,
+        tail_set=None,
     ):
         """Build the selected candidates into configurations.
 
         ``candidates`` is a list of ``(orientation_index, distance, ΔE-or-None)``
         (already selected/ordered); ``orient_data[i]`` holds that orientation's
         ``rebuild(d) -> coords`` closure, gap reference, well depth, and angles.
+        ``tail_set`` holds the candidate tuples chosen by the long-range distance
+        coverage; those are flagged ``is_tail`` on the diagnostics record so the
+        deliberately near-zero tail is excluded from the energy-flatness metric.
         Shared by both input modes. Returns ``(separations, ensemble, count)``.
         """
+        tail_set = tail_set or set()
         t_fixed, t_movable = templates
         count = 0
         separations = []
         ensemble = []
         point_of = {}
-        for orient_index, d, dE_value in candidates:
+        for cand in candidates:
+            orient_index, d, dE_value = cand
             o = orient_data[orient_index]
             coords = o["rebuild"](d)
             point_of[orient_index] = point_of.get(orient_index, 0) + 1
@@ -1483,6 +1494,7 @@ class DimerBuilder(seamm.Node):
                 "alpha": o["alpha"],
                 "beta": o["beta"],
                 "gamma": o["gamma"],
+                "is_tail": cand in tail_set,
             }
             if dE_value is not None:
                 geometry["interaction_energy"] = dE_value
@@ -1681,8 +1693,9 @@ class DimerBuilder(seamm.Node):
         a_idx = np.arange(nA)
         b_idx = np.arange(nA, nA + B0.n_atoms)
         split = None
+        tail_set = set()
         if global_strat:
-            candidates, split = self._select_pool(
+            candidates, split, tail_set = self._select_pool(
                 candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P, rng
             )
         candidates.sort(key=lambda c: (c[0], c[1]))
@@ -1703,6 +1716,7 @@ class DimerBuilder(seamm.Node):
             symbols_B=symbols_B,
             a_idx=a_idx,
             b_idx=b_idx,
+            tail_set=tail_set,
         )
 
         stats = self._stats(name, P["number of orientations"], separations)
@@ -1841,8 +1855,9 @@ class DimerBuilder(seamm.Node):
 
         # Phase 2: globally down-select the pooled candidates.
         split = None
+        tail_set = set()
         if global_strat:
-            candidates, split = self._select_pool(
+            candidates, split, tail_set = self._select_pool(
                 candidates,
                 orient_data,
                 symbols_fixed,
@@ -1870,6 +1885,7 @@ class DimerBuilder(seamm.Node):
             symbols_B=symbols_movable,
             a_idx=fixed_idx,
             b_idx=movable_idx,
+            tail_set=tail_set,
         )
 
         stats = self._stats(name, len(orient_data), separations)
