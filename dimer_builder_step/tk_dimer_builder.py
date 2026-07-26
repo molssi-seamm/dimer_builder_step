@@ -93,6 +93,7 @@ class TkDimerBuilder(seamm.TkNode):
             "spacing",
             "contact method",
             "selection method",
+            "tail coverage",
             "orientation weighting",
             "monomer A configurations",
             "monomer B configurations",
@@ -193,6 +194,13 @@ class TkDimerBuilder(seamm.TkNode):
                 add("orientation weighting")
                 if self["orientation weighting"].get() != "none":
                     add("minimum well depth")
+            add("tail coverage")
+            if self["tail coverage"].get() == "yes":
+                add("tail minimum separation")
+                add("tail spacing")
+                add("tail configurations per bin")
+                add("asymptote anchors")
+                add("anchor separation")
         else:
             add("number of separations")
 

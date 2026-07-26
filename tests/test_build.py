@@ -83,6 +83,12 @@ def _P(**overrides):
         "energy weight": 8.0,
         "number of energy bins": 12,
         "target configurations": 300,
+        "tail coverage": "no",
+        "tail minimum separation": Q_(4.0, "Å"),
+        "tail spacing": Q_(0.5, "Å"),
+        "tail configurations per bin": 5,
+        "asymptote anchors": 20,
+        "anchor separation": Q_(15.0, "Å"),
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
@@ -525,6 +531,68 @@ def test_build_energy_bins_plus_diversity_end_to_end(db_two_waters, monkeypatch)
     nz = counts[counts > 0].astype(float)
     assert nz.std() / nz.mean() < 0.6  # still flat in energy (guaranteed by bins)
     assert dE.max() <= cap + 1e-6
+
+
+def test_tail_selection_floor_and_anchors():
+    """The tail floor fills every near-tail bin and adds far-separation anchors."""
+    node = dimer_builder_step.DimerBuilder()
+    water = np.array([[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]])
+
+    def rebuild(d):
+        return np.vstack([water, water + np.array([0.0, 0.0, d])])
+
+    orient_data = [{"rebuild": rebuild}]
+    cands = [(0, float(d), 0.0) for d in np.arange(4.0, 15.01, 0.2)]
+    P = _P(
+        **{
+            "tail coverage": "yes",
+            "tail minimum separation": Q_(4.0, "Å"),
+            "tail spacing": Q_(1.0, "Å"),
+            "tail configurations per bin": 3,
+            "asymptote anchors": 5,
+            "anchor separation": Q_(15.0, "Å"),
+            "maximum separation": Q_(10.0, "Å"),
+        }
+    )
+    keep = node._tail_selection(
+        cands,
+        orient_data,
+        ["O", "H", "H"],
+        ["O", "H", "H"],
+        np.arange(3),
+        np.arange(3, 6),
+        P,
+    )
+    dk = np.array([cands[i][1] for i in keep])
+    for lo in range(4, 10):  # every 1 Å bin in [4,10) gets the per-bin count
+        assert np.sum((dk >= lo) & (dk < lo + 1)) >= 3
+    assert np.sum(dk > 10.0) >= 5  # asymptote anchors beyond max separation
+
+
+def test_tail_coverage_not_additive_and_reports_split(db_two_waters, monkeypatch):
+    """Tail coverage comes out of the target budget; the split is reported."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "selection method": "energy bins + diversity",
+            "number of orientations": 40,
+            "analysis plots": "none",
+            "target configurations": 120,
+            "tail coverage": "yes",
+            "tail configurations per bin": 3,
+            "asymptote anchors": 10,
+        }
+    )
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(3))
+    split = stats["selection"]
+    assert split["tail"] > 0  # tail floor + anchors were selected
+    assert split["core"] + split["tail"] == stats["n_configurations"]
+    assert stats["n_configurations"] <= 120  # NOT additive -- within the target
 
 
 def test_accept_orientation_reject_and_none():

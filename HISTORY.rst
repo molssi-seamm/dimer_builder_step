@@ -2,6 +2,31 @@
 History
 =======
 
+2026.7.23.1 -- Long-range distance coverage for energy-stratified sampling
+    * Energy-stratified sampling is flat in interaction energy, which starves the
+      weak long-range tail (beyond ~5 Å the interaction is ≈0, so it gets only
+      about one energy bin) even though molecular dynamics visits it constantly --
+      leaving a machine-learned force field under-constrained and prone to an
+      unphysical bump in that region. A new **Add long-range distance coverage**
+      option (on by default) supplements the kept set, independently of
+      interaction strength, with:
+
+        - a **distance-coverage floor** -- a minimum number of configurations in
+          each separation bin from **Tail coverage from** out to the maximum
+          separation (controlled by **Tail coverage spacing** and **Tail
+          configurations per bin**, chosen for geometric diversity); and
+        - **Asymptote anchors** -- a handful of far-separation configurations out
+          to **Anchor separation** that pin the interaction energy to zero at
+          large distance.
+    * The tail configurations come **out of Target configurations** (they are not
+      added on top), so raise the target to keep the same coverage of the strongly
+      interacting region. The analysis now reports the split -- how many
+      configurations came from the energy-stratified selection versus the
+      long-range coverage.
+    * The reported energy-flatness now describes the energy-stratified core only;
+      the deliberately near-zero tail configurations are excluded so they no
+      longer distort the flatness metric.
+
 2026.7.23 -- Diverse down-selection of the sampled dimers
     * Energy-stratified sampling can now keep a **geometrically diverse,
       de-duplicated** set rather than just a flat-in-energy one, so redundant
