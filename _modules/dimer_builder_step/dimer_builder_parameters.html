@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.23.1 documentation</title>
+    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.27 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=ea3d18b0"></script>
+    <script src="../../_static/documentation_options.js?v=f166bad5"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.23.1" />
+  <meta name="docsearch:version" content="2026.7.27" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -947,6 +947,69 @@
                 <span class="s2">&quot;The largest center-to-center separation sampled for the asymptote &quot;</span>
                 <span class="s2">&quot;anchors (the profile is extended to here so the ≈0 tail is &quot;</span>
                 <span class="s2">&quot;represented out to this distance).&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;wall coverage&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;no&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Add repulsive-wall coverage:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;Energy-stratified selection caps the repulsive side at the largest &quot;</span>
+                <span class="s2">&quot;positive &#39;ΔE level&#39; (~+5·kBT), so the training set gets no points &quot;</span>
+                <span class="s2">&quot;on the steep repulsive wall above that and a machine-learned force &quot;</span>
+                <span class="s2">&quot;field extrapolates the wall too softly -- a stability risk under &quot;</span>
+                <span class="s2">&quot;high-temperature or non-equilibrium dynamics. With this on, the &quot;</span>
+                <span class="s2">&quot;kept set is supplemented with short-separation configurations &quot;</span>
+                <span class="s2">&quot;walked up the wall to &#39;Wall coverage up to&#39;, spread in energy, so &quot;</span>
+                <span class="s2">&quot;the hard wall is sampled directly. Off by default (a robustness / &quot;</span>
+                <span class="s2">&quot;high-T add-on that costs extra energy evaluations).&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;wall ceiling&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">200.0</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall coverage up to:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;The most repulsive interaction energy the wall coverage samples up &quot;</span>
+                <span class="s2">&quot;to (measured from the far-point asymptote, like all the ΔE levels). &quot;</span>
+                <span class="s2">&quot;The inward scan is extended until ΔE reaches this ceiling, and the &quot;</span>
+                <span class="s2">&quot;wall configurations are spread in energy from the repulsive-wall &quot;</span>
+                <span class="s2">&quot;cap up to here.&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;wall energy spacing&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">25.0</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall coverage spacing:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;The interaction-energy bin width of the wall coverage, from the &quot;</span>
+                <span class="s2">&quot;repulsive-wall cap up to &#39;Wall coverage up to&#39; (smaller = a denser &quot;</span>
+                <span class="s2">&quot;sampling of the wall).&quot;</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">&quot;wall configurations per bin&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall configurations per bin:&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">&quot;The number of configurations to keep in each energy bin of the &quot;</span>
+                <span class="s2">&quot;wall coverage (chosen for geometric diversity over orientations). &quot;</span>
+                <span class="s2">&quot;Like the long-range tail coverage, the wall configurations come &quot;</span>
+                <span class="s2">&quot;OUT of &#39;target configurations&#39; (they are not added on top), so &quot;</span>
+                <span class="s2">&quot;raise the target to keep the same coverage of the attractive &quot;</span>
+                <span class="s2">&quot;region.&quot;</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="s2">&quot;separations&quot;</span><span class="p">:</span> <span class="p">{</span>

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.23.1 documentation</title>
+    <title>User Guide &#8212; SEAMM Dimer Builder Plug-in 2026.7.27 documentation</title>
   
   
   
@@ -41,7 +41,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=ea3d18b0"></script>
+    <script src="../_static/documentation_options.js?v=f166bad5"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -55,7 +55,7 @@
     <link rel="prev" title="Getting Started" href="../getting_started/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.23.1" />
+  <meta name="docsearch:version" content="2026.7.27" />
   
     
     <script src="../_static/searchtools.js"></script>
@@ -630,6 +630,41 @@ at the <strong>Sampling temperature</strong>) may be used.</p></li>
 flat-in-energy set naturally has most of its configurations at short
 separations; that is expected.</p>
 </section>
+<section id="covering-the-long-range-tail-and-the-repulsive-wall">
+<h3>Covering the long-range tail and the repulsive wall<a class="headerlink" href="#covering-the-long-range-tail-and-the-repulsive-wall" title="Link to this heading">#</a></h3>
+<p>Being flat <em>in energy</em> clips both ends of the physical range, which can leave a
+machine-learned force field under-constrained where it still needs to be right:</p>
+<ul class="simple">
+<li><p>the weak <strong>long-range tail</strong> (beyond ~5 Å the interaction is ≈ 0, so it maps to
+a single energy bin) even though dynamics visits it constantly; and</p></li>
+<li><p>the steep <strong>repulsive wall</strong> above the <code class="docutils literal notranslate"><span class="pre">+5*kBT</span></code> cap, which the energy window
+deliberately excludes – so a force field has no data there and extrapolates
+the wall too softly, a stability risk in high-temperature or non-equilibrium
+dynamics.</p></li>
+</ul>
+<p>Two optional supplements fill these regions independently of interaction
+strength. Both come <strong>out of Target configurations</strong> (they are not added on top),
+so raise the target to keep the same coverage of the strongly interacting core,
+and the analysis reports how the total splits between the core, the tail, and the
+wall.</p>
+<ul class="simple">
+<li><p><strong>Add long-range distance coverage</strong> (on by default) adds a
+<em>distance-coverage floor</em> – <strong>Tail configurations per bin</strong> in every <strong>Tail
+coverage spacing</strong> bin from <strong>Tail coverage from</strong> out to the maximum
+separation – plus a few <strong>Asymptote anchors</strong> at large separation (out to
+<strong>Anchor separation</strong>) to pin the interaction energy to zero.</p></li>
+<li><p><strong>Add repulsive-wall coverage</strong> (off by default – a robustness / high-<em>T</em>
+add-on that costs extra energy evaluations) walks the scan further <em>up</em> the
+wall, to <strong>Wall coverage up to</strong>, and keeps <strong>Wall configurations per bin</strong> in
+each <strong>Wall coverage spacing</strong> energy bin from the <code class="docutils literal notranslate"><span class="pre">+5*kBT</span></code> cap up to that
+ceiling. Turn it on when the model must stay stable under compression or at
+high temperature.</p></li>
+</ul>
+<p>Both supplements pick a geometrically diverse subset in each bin, and their
+configurations are excluded from the reported energy-flatness metric (which then
+describes only the flat-in-energy core, not the deliberately off-core tail and
+wall points).</p>
+</section>
 </section>
 <section id="what-is-stored">
 <h2>What is stored<a class="headerlink" href="#what-is-stored" title="Link to this heading">#</a></h2>
@@ -779,6 +814,7 @@ distribution</strong>. The <strong>approach concentration</strong> tells you sep
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#the-radial-scan">The radial scan</a><ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-based-contact">Energy-based contact</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#energy-stratified-sampling">Energy-stratified sampling</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#covering-the-long-range-tail-and-the-repulsive-wall">Covering the long-range tail and the repulsive wall</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-is-stored">What is stored</a></li>
