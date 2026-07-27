@@ -129,6 +129,42 @@ Because the interaction energy varies almost entirely at short range, a
 flat-in-energy set naturally has most of its configurations at short
 separations; that is expected.
 
+Covering the long-range tail and the repulsive wall
+---------------------------------------------------
+
+Being flat *in energy* clips both ends of the physical range, which can leave a
+machine-learned force field under-constrained where it still needs to be right:
+
+* the weak **long-range tail** (beyond ~5 Å the interaction is ≈ 0, so it maps to
+  a single energy bin) even though dynamics visits it constantly; and
+* the steep **repulsive wall** above the ``+5*kBT`` cap, which the energy window
+  deliberately excludes -- so a force field has no data there and extrapolates
+  the wall too softly, a stability risk in high-temperature or non-equilibrium
+  dynamics.
+
+Two optional supplements fill these regions independently of interaction
+strength. Both come **out of Target configurations** (they are not added on top),
+so raise the target to keep the same coverage of the strongly interacting core,
+and the analysis reports how the total splits between the core, the tail, and the
+wall.
+
+* **Add long-range distance coverage** (on by default) adds a
+  *distance-coverage floor* -- **Tail configurations per bin** in every **Tail
+  coverage spacing** bin from **Tail coverage from** out to the maximum
+  separation -- plus a few **Asymptote anchors** at large separation (out to
+  **Anchor separation**) to pin the interaction energy to zero.
+* **Add repulsive-wall coverage** (off by default -- a robustness / high-*T*
+  add-on that costs extra energy evaluations) walks the scan further *up* the
+  wall, to **Wall coverage up to**, and keeps **Wall configurations per bin** in
+  each **Wall coverage spacing** energy bin from the ``+5*kBT`` cap up to that
+  ceiling. Turn it on when the model must stay stable under compression or at
+  high temperature.
+
+Both supplements pick a geometrically diverse subset in each bin, and their
+configurations are excluded from the reported energy-flatness metric (which then
+describes only the flat-in-energy core, not the deliberately off-core tail and
+wall points).
+
 What is stored
 ==============
 

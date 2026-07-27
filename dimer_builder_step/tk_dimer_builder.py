@@ -94,6 +94,7 @@ class TkDimerBuilder(seamm.TkNode):
             "contact method",
             "selection method",
             "tail coverage",
+            "wall coverage",
             "orientation weighting",
             "monomer A configurations",
             "monomer B configurations",
@@ -201,6 +202,11 @@ class TkDimerBuilder(seamm.TkNode):
                 add("tail configurations per bin")
                 add("asymptote anchors")
                 add("anchor separation")
+            add("wall coverage")
+            if self["wall coverage"].get() == "yes":
+                add("wall ceiling")
+                add("wall energy spacing")
+                add("wall configurations per bin")
         else:
             add("number of separations")
 

@@ -454,6 +454,69 @@ class DimerBuilderParameters(seamm.Parameters):
                 "represented out to this distance)."
             ),
         },
+        "wall coverage": {
+            "default": "no",
+            "kind": "boolean",
+            "default_units": "",
+            "enumeration": ("yes", "no"),
+            "format_string": "",
+            "description": "Add repulsive-wall coverage:",
+            "help_text": (
+                "Energy-stratified selection caps the repulsive side at the largest "
+                "positive 'ΔE level' (~+5·kBT), so the training set gets no points "
+                "on the steep repulsive wall above that and a machine-learned force "
+                "field extrapolates the wall too softly -- a stability risk under "
+                "high-temperature or non-equilibrium dynamics. With this on, the "
+                "kept set is supplemented with short-separation configurations "
+                "walked up the wall to 'Wall coverage up to', spread in energy, so "
+                "the hard wall is sampled directly. Off by default (a robustness / "
+                "high-T add-on that costs extra energy evaluations)."
+            ),
+        },
+        "wall ceiling": {
+            "default": 200.0,
+            "kind": "float",
+            "default_units": "kJ/mol",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Wall coverage up to:",
+            "help_text": (
+                "The most repulsive interaction energy the wall coverage samples up "
+                "to (measured from the far-point asymptote, like all the ΔE levels). "
+                "The inward scan is extended until ΔE reaches this ceiling, and the "
+                "wall configurations are spread in energy from the repulsive-wall "
+                "cap up to here."
+            ),
+        },
+        "wall energy spacing": {
+            "default": 25.0,
+            "kind": "float",
+            "default_units": "kJ/mol",
+            "enumeration": tuple(),
+            "format_string": ".1f",
+            "description": "Wall coverage spacing:",
+            "help_text": (
+                "The interaction-energy bin width of the wall coverage, from the "
+                "repulsive-wall cap up to 'Wall coverage up to' (smaller = a denser "
+                "sampling of the wall)."
+            ),
+        },
+        "wall configurations per bin": {
+            "default": 5,
+            "kind": "integer",
+            "default_units": "",
+            "enumeration": tuple(),
+            "format_string": "",
+            "description": "Wall configurations per bin:",
+            "help_text": (
+                "The number of configurations to keep in each energy bin of the "
+                "wall coverage (chosen for geometric diversity over orientations). "
+                "Like the long-range tail coverage, the wall configurations come "
+                "OUT of 'target configurations' (they are not added on top), so "
+                "raise the target to keep the same coverage of the attractive "
+                "region."
+            ),
+        },
         "separations": {
             "default": "",
             "kind": "string",

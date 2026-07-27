@@ -89,6 +89,10 @@ def _P(**overrides):
         "tail configurations per bin": 5,
         "asymptote anchors": 20,
         "anchor separation": Q_(15.0, "Å"),
+        "wall coverage": "no",
+        "wall ceiling": Q_(200.0, "kJ/mol"),
+        "wall energy spacing": Q_(25.0, "kJ/mol"),
+        "wall configurations per bin": 5,
         "system name": "from monomers",
         "configuration name": "orientation,distance",
         "save scan variables as properties": "yes",
@@ -593,6 +597,206 @@ def test_tail_coverage_not_additive_and_reports_split(db_two_waters, monkeypatch
     assert split["tail"] > 0  # tail floor + anchors were selected
     assert split["core"] + split["tail"] == stats["n_configurations"]
     assert stats["n_configurations"] <= 120  # NOT additive -- within the target
+
+
+def test_wall_ceiling_gates():
+    """The wall ceiling is off by default and disabled when at/below the cap."""
+    node = dimer_builder_step.DimerBuilder()
+    assert node._wall_ceiling(_P()) is None  # off by default
+    on = node._wall_ceiling(_P(**{"wall coverage": "yes"}))
+    assert on == pytest.approx(200.0)
+    # A ceiling at or below the repulsive cap (~+5*kBT ≈ 12.5) has no wall to add.
+    off = node._wall_ceiling(
+        _P(**{"wall coverage": "yes", "wall ceiling": Q_(5.0, "kJ/mol")})
+    )
+    assert off is None
+
+
+def test_energy_candidates_wall_coverage_extends():
+    """With wall coverage on, candidates reach up the wall to the ceiling."""
+    node = dimer_builder_step.DimerBuilder()
+    ds = np.linspace(2.0, 10.0, 161)
+    De = 20.0
+    dE = De * (((3.0 / ds) ** 12) - 2.0 * ((3.0 / ds) ** 6))
+    dE = dE / (-dE.min()) * De  # normalize the depth to exactly De
+    P = _P(**{"wall coverage": "yes", "wall ceiling": Q_(150.0, "kJ/mol")})
+    cand = node._energy_candidates(ds, dE, P)
+    cap = node._repulsive_cap(P)  # ~12.5 kJ/mol
+    ceiling = node._wall_ceiling(P)  # 150 kJ/mol
+    emax = max(e for _, e in cand)
+    assert emax > cap + 10.0  # the wall above the cap is now represented
+    assert emax <= ceiling + 1.0e-6  # but never above the ceiling
+    assert min(e for _, e in cand) < 0.0  # the well is still there
+
+
+def test_energy_profile_walks_up_the_wall():
+    """Wall coverage extends the inward scan well past the +5*kBT cap."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    P_wall = _P(**{"wall coverage": "yes", "wall ceiling": Q_(150.0, "kJ/mol")})
+    _, dE, _, _ = node._energy_profile(engine, assemble, seed=3.0, P=P_wall)
+    assert dE.max() >= 150.0  # walked in until ΔE reached the ceiling
+    assert dE.min() < 0.0  # the attractive well is still sampled
+
+
+def test_wall_selection_bins_by_energy():
+    """The wall floor fills each energy bin from the cap up to the ceiling."""
+    node = dimer_builder_step.DimerBuilder()
+    water = np.array([[0.0, 0.0, 0.0], [0.76, 0.59, 0.0], [-0.76, 0.59, 0.0]])
+
+    def rebuild(d):
+        return np.vstack([water, water + np.array([0.0, 0.0, d])])
+
+    orient_data = [{"rebuild": rebuild}]
+    # Short-separation candidates whose ΔE climbs from ~0 past the ceiling.
+    cands = [
+        (0, float(d), float(e))
+        for d, e in zip(np.linspace(2.0, 3.0, 60), np.linspace(0.0, 260.0, 60))
+    ]
+    P = _P(
+        **{
+            "wall coverage": "yes",
+            "wall ceiling": Q_(200.0, "kJ/mol"),
+            "wall energy spacing": Q_(50.0, "kJ/mol"),
+            "wall configurations per bin": 4,
+        }
+    )
+    keep = node._wall_selection(
+        cands,
+        orient_data,
+        ["O", "H", "H"],
+        ["O", "H", "H"],
+        np.arange(3),
+        np.arange(3, 6),
+        P,
+    )
+    ek = np.array([cands[i][2] for i in keep])
+    cap = node._repulsive_cap(P)  # ~12.5 kJ/mol
+    assert ek.min() >= cap - 1.0e-9  # nothing below the repulsive cap
+    assert ek.max() <= 200.0 + 1.0e-9  # nothing above the ceiling
+    assert ek.max() > 150.0  # the steep upper wall is represented
+    # Each 50 kJ/mol bin from the cap up to the ceiling gets some coverage.
+    for lo in (cap, cap + 50.0, cap + 100.0):
+        assert np.any((ek >= lo) & (ek < lo + 50.0))
+
+
+def test_wall_coverage_not_additive_and_reports_split(db_two_waters, monkeypatch):
+    """Wall coverage comes out of the budget; the core stays below the cap."""
+    node = dimer_builder_step.DimerBuilder()
+    engine = _LJEngine(nA=3, sigma=3.0, eps=0.01)
+    monkeypatch.setattr(node, "_open_energy_engine", lambda *a, **k: engine)
+    node._energy_model = "LJ"
+    P = _P(
+        **{
+            "contact method": "energy",
+            "spacing": "energy-stratified",
+            "selection method": "energy bins + diversity",
+            "number of orientations": 40,
+            "analysis plots": "basic",  # collect the ensemble to inspect is_tail
+            "target configurations": 120,
+            "tail coverage": "no",
+            "wall coverage": "yes",
+            "wall ceiling": Q_(150.0, "kJ/mol"),
+            "wall energy spacing": Q_(30.0, "kJ/mol"),
+            "wall configurations per bin": 3,
+        }
+    )
+    _, stats = node._build(db_two_waters, P, np.random.default_rng(5))
+    split = stats["selection"]
+    assert split["wall"] > 0  # the wall floor was selected
+    assert split["core"] + split["tail"] + split["wall"] == stats["n_configurations"]
+    assert stats["n_configurations"] <= 120  # NOT additive -- within the target
+
+    cap = node._repulsive_cap(P)
+    core_e = [d.energy for d in stats["ensemble"] if not d.is_tail]
+    wall_e = [d.energy for d in stats["ensemble"] if d.is_tail]
+    assert max(core_e) <= cap + 1.0e-6  # the flat core never exceeds the cap
+    assert max(wall_e) > cap + 10.0  # the wall points carry the high ΔE
+
+
+def test_progress_reporter_throttles_and_extrapolates():
+    """Progress prints no more than once per interval, with a remaining estimate."""
+    from dimer_builder_step.dimer_builder import _ProgressReporter
+
+    now = [0.0]  # a controllable clock
+    lines = []
+    p = _ProgressReporter(
+        100,
+        what="orientations",
+        interval=60.0,
+        emit=lines.append,
+        clock=lambda: now[0],
+    )
+    # Items that all land strictly inside the first interval -> silent.
+    for i in range(1, 30):
+        now[0] = i * 2.0  # 2 s each -> 58 s at item 29, still under 60 s
+        p.step(i)
+    assert lines == []  # nothing printed before the interval elapses
+
+    now[0] = 61.0  # cross the interval
+    p.step(30)
+    assert len(lines) == 1
+    assert "30%" in lines[0] and "30 of 100" in lines[0]
+    # 30 items in 61 s -> ~2 s each -> ~70 items left -> ~2 min remaining.
+    assert "remaining" in lines[0]
+
+    # A second report is suppressed until another interval passes.
+    now[0] = 90.0
+    p.step(45)
+    assert len(lines) == 1
+    now[0] = 121.5
+    p.step(60)
+    assert len(lines) == 2
+
+
+def test_progress_reporter_silent_for_short_run():
+    """A run that finishes inside one interval prints nothing."""
+    from dimer_builder_step.dimer_builder import _ProgressReporter
+
+    now = [0.0]
+    lines = []
+    p = _ProgressReporter(10, interval=60.0, emit=lines.append, clock=lambda: now[0])
+    for i in range(1, 11):
+        now[0] = i * 3.0  # 30 s total, well under the interval
+        p.step(i)
+    assert lines == []
+
+
+def test_progress_reporter_time_format():
+    """Durations render compactly across seconds/minutes/hours."""
+    from dimer_builder_step.dimer_builder import _ProgressReporter
+
+    fmt = _ProgressReporter._format_time
+    assert fmt(45) == "45 s"
+    assert fmt(125) == "2 min 5 s"
+    assert fmt(3 * 3600 + 12 * 60) == "3 h 12 min"
+
+
+def test_build_reports_progress(db_two_waters, monkeypatch):
+    """The orientation loop drives the progress reporter (wired end-to-end)."""
+    from dimer_builder_step import dimer_builder as mod
+
+    lines = []
+    real_init = mod._ProgressReporter.__init__
+
+    # Force every step past the throttle so the wiring is observable in a fast
+    # test, and capture what would be printed.
+    def fast_init(self, total, **kwargs):
+        kwargs["interval"] = 0.0
+        kwargs["emit"] = lines.append
+        real_init(self, total, **kwargs)
+
+    monkeypatch.setattr(mod._ProgressReporter, "__init__", fast_init)
+
+    node = dimer_builder_step.DimerBuilder()
+    P = _P()
+    P["number of orientations"] = 4
+    node._build(db_two_waters, P, np.random.default_rng(1))
+
+    assert lines  # progress was reported
+    assert "of 4 orientations" in lines[-1]
+    assert "% complete" in lines[-1]
 
 
 def test_accept_orientation_reject_and_none():

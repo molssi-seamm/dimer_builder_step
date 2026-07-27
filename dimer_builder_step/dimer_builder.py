@@ -5,6 +5,7 @@
 import logging
 import importlib.resources
 import pprint  # noqa: F401
+import time
 
 import numpy as np
 
@@ -67,6 +68,71 @@ def vdw_radii(symbols):
             r = 150.0
         radii.append(r / 100.0)  # picometres -> Å
     return np.array(radii)
+
+
+class _ProgressReporter:
+    """Throttled progress reporter for a long, item-by-item loop.
+
+    Prints ``<pct>% complete (<done> of <total>), <elapsed> elapsed, about
+    <remaining> remaining`` -- but **no more often than every ``interval``
+    seconds**, so a short run (all items done inside one interval) prints
+    nothing and a long run prints roughly once per interval. The remaining time
+    is extrapolated from the average rate so far.
+
+    ``clock`` and ``emit`` are injectable for testing; by default the wall clock
+    is ``time.monotonic`` and each line goes to the step's printer.
+    """
+
+    def __init__(
+        self,
+        total,
+        *,
+        what="configurations",
+        interval=60.0,
+        indent=4 * " ",
+        emit=None,
+        clock=time.monotonic,
+    ):
+        self._total = max(int(total), 1)
+        self._what = what
+        self._interval = float(interval)
+        self._indent = indent
+        self._clock = clock
+        self._emit = emit if emit is not None else self._print
+        self._start = self._clock()
+        self._last = self._start  # start the clock now -> nothing before interval
+        self._done = 0
+
+    def _print(self, text):
+        printer.important(__(text, indent=self._indent))
+
+    def step(self, done=None):
+        """Record progress (``done`` items complete, or +1) and print if due."""
+        self._done = self._done + 1 if done is None else int(done)
+        now = self._clock()
+        if now - self._last < self._interval or self._done <= 0:
+            return
+        self._last = now
+        elapsed = now - self._start
+        remaining = elapsed * (self._total - self._done) / self._done
+        pct = 100.0 * self._done / self._total
+        self._emit(
+            f"{pct:.0f}% complete ({self._done} of {self._total} {self._what}), "
+            f"{self._format_time(elapsed)} elapsed, about "
+            f"{self._format_time(remaining)} remaining."
+        )
+
+    @staticmethod
+    def _format_time(seconds):
+        """A compact 'H h M min' / 'M min S s' / 'S s' duration."""
+        seconds = int(round(max(seconds, 0.0)))
+        hours, rem = divmod(seconds, 3600)
+        minutes, secs = divmod(rem, 60)
+        if hours:
+            return f"{hours} h {minutes} min"
+        if minutes:
+            return f"{minutes} min {secs} s"
+        return f"{secs} s"
 
 
 class DimerBuilder(seamm.Node):
@@ -371,12 +437,21 @@ class DimerBuilder(seamm.Node):
         printer.important(__(text, indent=4 * " "))
 
         split = stats.get("selection")
-        if split is not None and split.get("tail", 0) > 0:
-            text = (
-                f"Of these, {split['core']} came from the energy-stratified "
-                f"selection and {split['tail']} from the long-range distance "
-                f"coverage (tail floor + asymptote anchors)."
-            )
+        if split is not None and (split.get("tail", 0) or split.get("wall", 0)):
+            parts = [
+                f"{split['core']} from the energy-stratified selection",
+            ]
+            if split.get("tail", 0):
+                parts.append(
+                    f"{split['tail']} from the long-range distance coverage "
+                    "(tail floor + asymptote anchors)"
+                )
+            if split.get("wall", 0):
+                parts.append(f"{split['wall']} from the repulsive-wall coverage")
+            if len(parts) == 2:
+                text = f"Of these, {parts[0]} and {parts[1]}."
+            else:
+                text = "Of these, " + ", ".join(parts[:-1]) + f", and {parts[-1]}."
             printer.important(__(text, indent=4 * " "))
 
         if stats.get("model_chemistry"):
@@ -920,6 +995,9 @@ class DimerBuilder(seamm.Node):
         * **inward** from the minimum, one step at a time, until ΔE rises past
           the largest positive target level -- so the repulsive wall is covered
           *by energy*, not by a vdW-relative offset (down to a physical floor).
+          When wall coverage is on, the inward walk continues (at a finer step)
+          past that level up to the 'wall ceiling', so the steep repulsive wall
+          is sampled directly rather than clipped at ~+5·kBT.
 
         Returns ``(ds, dE, d_min, De)``: the center-to-center grid ``ds`` (Å),
         the interaction energy ``dE`` (kJ/mol), the ΔE minimum ``d_min`` (Å), and
@@ -951,19 +1029,30 @@ class DimerBuilder(seamm.Node):
         step = (d_hi - anchor) / (n - 1)
 
         # 3. Inward branch: walk in from the anchor until ΔE reaches the largest
-        #    positive target level (the repulsive wall), down to the floor.
-        d = anchor - step
-        while d >= floor:
+        #    positive target level (the repulsive wall), down to the floor. When
+        #    wall coverage is on, continue up to the higher 'wall ceiling' at a
+        #    finer step (the outward step can be coarse once the tail extends the
+        #    scan to the anchor separation) and with a lower floor, so the steep
+        #    wall is resolved instead of clipped at ~+5·kBT.
+        wall_ceiling = self._wall_ceiling(P)
+        in_step = min(step, 0.2) if wall_ceiling is not None else step
+        in_floor = max(seed - 3.5, 0.7) if wall_ceiling is not None else floor
+        d = anchor - in_step
+        while d >= in_floor:
             e = energy_at(d)
             ds.insert(0, d)
             es.insert(0, e)
-            dE = (np.array(es) - e_ref) * hartree_to_kJmol
-            De = float(-dE.min()) if dE.min() < 0.0 else 0.0
-            targets = self._energy_levels(De, kBT, P)
-            max_pos = max([t for t in targets if t > 0.0], default=0.0)
-            if (e - e_ref) * hartree_to_kJmol >= max_pos:
+            e_rel = (e - e_ref) * hartree_to_kJmol
+            if wall_ceiling is not None:
+                limit = wall_ceiling
+            else:
+                dE = (np.array(es) - e_ref) * hartree_to_kJmol
+                De = float(-dE.min()) if dE.min() < 0.0 else 0.0
+                targets = self._energy_levels(De, kBT, P)
+                limit = max([t for t in targets if t > 0.0], default=0.0)
+            if e_rel >= limit:
                 break
-            d -= step
+            d -= in_step
 
         ds = np.array(ds)
         dE = (np.array(es) - e_ref) * hartree_to_kJmol
@@ -1016,6 +1105,34 @@ class DimerBuilder(seamm.Node):
         positive = [t for t in levels if t > 0.0]
         return max(positive) if positive else None
 
+    def _wall_ceiling(self, P):
+        """The top ΔE (kJ/mol) the repulsive wall is sampled to, or None.
+
+        Returns the 'wall ceiling' when wall coverage is on (and it lies above
+        the repulsive cap), else None. When set, the inward energy scan
+        continues past the repulsive cap up to this energy so the steep wall is
+        covered directly -- countering a machine-learned force field's tendency
+        to extrapolate the wall too softly (a high-T / non-equilibrium stability
+        risk) when it has no training points above ~+5·kBT.
+        """
+        if not self._truthy(P.get("wall coverage", "no")):
+            return None
+        ceiling = float(P["wall ceiling"].to("kJ/mol").magnitude)
+        cap = self._repulsive_cap(P)
+        if cap is not None and ceiling <= cap:
+            return None
+        return ceiling
+
+    def _candidate_ceiling(self, P):
+        """The ΔE cutoff (kJ/mol) for pooled candidates.
+
+        The wall ceiling when wall coverage is on (so the steep wall survives
+        into the pool), otherwise the repulsive-wall cap. Points above it are
+        dropped from the candidate pool.
+        """
+        ceiling = self._wall_ceiling(P)
+        return ceiling if ceiling is not None else self._repulsive_cap(P)
+
     def _outer_separation(self, P):
         """The outer scan bound: the anchor separation when tail coverage is on,
         else the maximum separation, so the ≈0 far tail is sampled out to where
@@ -1029,15 +1146,16 @@ class DimerBuilder(seamm.Node):
         """Dense (distance, ΔE) candidate points from one orientation's profile.
 
         Interpolates ΔE on a fine radial grid spanning the sampled profile and
-        drops any point above the repulsive cap. These candidates from every
-        orientation are pooled and then globally stratified by energy; a dense
-        grid (rather than the ~handful of profile points) lets the global
-        binning fill each energy band smoothly.
+        drops any point above the candidate ceiling (the repulsive cap normally,
+        or the higher wall ceiling when wall coverage is on, so the steep wall
+        survives). These candidates from every orientation are pooled and then
+        globally stratified by energy; a dense grid (rather than the ~handful of
+        profile points) lets the global binning fill each energy band smoothly.
         """
         interp = self._make_interpolator(ds, dE)
         n = max(int(P["number of separations"]) * 3, 40)
         grid = np.linspace(float(ds[0]), float(ds[-1]), n)
-        cap = self._repulsive_cap(P)
+        cap = self._candidate_ceiling(P)
         out = []
         for d in grid:
             e = interp(float(d))
@@ -1259,28 +1377,46 @@ class DimerBuilder(seamm.Node):
     ):
         """Down-select the pooled candidates to about 'target configurations'.
 
-        The long-range tail coverage (distance floor + asymptote anchors) is
-        reserved *first* and comes **out of** the total budget -- it is not
-        additive -- so the energy-stratified/DIRECT core selects only the
-        remaining budget from the candidates the tail did not already take.
-        Returns ``(kept_candidates, split, tail_set)`` where ``split`` is
-        ``{"core": n, "tail": n}`` so the caller can report how the total splits,
-        and ``tail_set`` is the subset of the returned candidate tuples chosen by
-        the long-range distance coverage (so diagnostics can flag them
+        The long-range tail coverage (distance floor + asymptote anchors) and
+        the repulsive-wall coverage are reserved *first* and come **out of** the
+        total budget -- they are not additive -- so the energy-stratified/DIRECT
+        core selects only the remaining budget from the candidates they did not
+        already take. Both are also kept out of the flat-in-energy core so they
+        do not distort it: the tail sits near ΔE ≈ 0 and the wall lies above the
+        repulsive cap (every above-cap candidate is either a selected wall point
+        or dropped -- it must never fall into the core's top energy bin).
+        Returns ``(kept_candidates, split, noncore_set)`` where ``split`` is
+        ``{"core": n, "tail": n, "wall": n}`` so the caller can report how the
+        total splits, and ``noncore_set`` is the subset of returned candidate
+        tuples chosen by the tail or wall coverage (so diagnostics can flag them
         ``is_tail`` and exclude them from the energy-flatness metric).
         """
         target = self._core_target(P, None)
-        tail_on = self._truthy(P.get("tail coverage", "no"))
+
         tail_keep = set()
-        if tail_on:
+        if self._truthy(P.get("tail coverage", "no")):
             tail_keep = self._tail_selection(
                 candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
             )
+        wall_keep = self._wall_selection(
+            candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+        )
+        reserved = tail_keep | wall_keep
 
-        # The core selects the remaining budget from the candidates the tail did
-        # not already take (so tail + core ≈ target, not target + tail).
-        core_target = max(target - len(tail_keep), 1)
-        avail_idx = [i for i in range(len(candidates)) if i not in tail_keep]
+        # The core is the flat-in-energy region at or below the repulsive cap.
+        # When wall coverage is on the pool also holds above-cap points; keep
+        # only the ones wall coverage selected and hide the rest from the core,
+        # which would otherwise pile them into its top (clipped) energy bin.
+        cap = self._repulsive_cap(P)
+        above_cap = set()
+        if self._wall_ceiling(P) is not None and cap is not None:
+            above_cap = {i for i, c in enumerate(candidates) if c[2] > cap}
+        excluded = reserved | above_cap
+
+        # The core selects the remaining budget from the candidates the tail and
+        # wall did not already take (so tail + wall + core ≈ target).
+        core_target = max(target - len(reserved), 1)
+        avail_idx = [i for i in range(len(candidates)) if i not in excluded]
         avail = [candidates[i] for i in avail_idx]
 
         method = P.get("selection method", "energy bins")
@@ -1312,10 +1448,14 @@ class DimerBuilder(seamm.Node):
             )
         core_keep = {avail_idx[j] for j in local}
 
-        final = sorted(tail_keep | core_keep)
-        split = {"core": len(core_keep), "tail": len(tail_keep)}
-        tail_set = {candidates[i] for i in tail_keep}
-        return [candidates[i] for i in final], split, tail_set
+        final = sorted(reserved | core_keep)
+        split = {
+            "core": len(core_keep),
+            "tail": len(tail_keep),
+            "wall": len(wall_keep),
+        }
+        noncore_set = {candidates[i] for i in reserved}
+        return [candidates[i] for i in final], split, noncore_set
 
     def _tail_selection(
         self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
@@ -1367,6 +1507,55 @@ class DimerBuilder(seamm.Node):
             anchor_max = P["anchor separation"].to("Å").magnitude
             members = np.where((d > near_max) & (d <= anchor_max))[0]
             pick(members, n_anchors)
+
+        return keep
+
+    def _wall_selection(
+        self, candidates, orient_data, symbols_A, symbols_B, a_idx, b_idx, P
+    ):
+        """Repulsive-wall coverage, selected in energy above the repulsive cap.
+
+        Energy-stratified selection caps the repulsive side at ~+5·kBT, leaving
+        the steep wall unsampled so a machine-learned force field extrapolates it
+        too softly. This guarantees, independent of the flat-in-energy core, a
+        minimum number of configurations in each 'wall energy spacing' bin from
+        the repulsive-wall cap up to the 'wall ceiling', each bin chosen for
+        geometric diversity over orientations. Returns the set of selected
+        indices into ``candidates`` (empty if wall coverage is off or nothing
+        lies above the cap).
+        """
+        ceiling = self._wall_ceiling(P)
+        if ceiling is None:
+            return set()
+        cap = self._repulsive_cap(P)
+        lo = float(cap) if cap is not None else 0.0
+        dE = np.array([c[2] for c in candidates], dtype=float)
+        keep = set()
+
+        def pick(pool_idx, count):
+            """Add up to `count` geometrically-diverse candidates from pool_idx."""
+            avail = [i for i in pool_idx if i not in keep]
+            if not avail or count <= 0:
+                return
+            if len(avail) <= count:
+                keep.update(avail)
+                return
+            sub = [candidates[i] for i in avail]
+            dimers = self._candidate_dimers(
+                sub, orient_data, symbols_A, symbols_B, a_idx, b_idx
+            )
+            local = self._cluster_pick(dimers, None, count, 1.0)
+            keep.update(avail[j] for j in local)
+
+        # Energy-coverage floor over (repulsive cap, wall ceiling].
+        spacing = max(P["wall energy spacing"].to("kJ/mol").magnitude, 1.0e-3)
+        per_bin = max(int(P["wall configurations per bin"]), 0)
+        edge = lo
+        while per_bin > 0 and edge < ceiling - 1.0e-6:
+            hi = min(edge + spacing, ceiling)
+            members = np.where((dE >= edge) & (dE < hi))[0]
+            pick(members, per_bin)
+            edge = hi
 
         return keep
 
@@ -1470,8 +1659,9 @@ class DimerBuilder(seamm.Node):
         (already selected/ordered); ``orient_data[i]`` holds that orientation's
         ``rebuild(d) -> coords`` closure, gap reference, well depth, and angles.
         ``tail_set`` holds the candidate tuples chosen by the long-range distance
-        coverage; those are flagged ``is_tail`` on the diagnostics record so the
-        deliberately near-zero tail is excluded from the energy-flatness metric.
+        coverage or the repulsive-wall coverage; those are flagged ``is_tail`` on
+        the diagnostics record so the deliberately off-core points (near-zero
+        tail and high-energy wall) are excluded from the energy-flatness metric.
         Shared by both input modes. Returns ``(separations, ensemble, count)``.
         """
         tail_set = tail_set or set()
@@ -1626,11 +1816,15 @@ class DimerBuilder(seamm.Node):
         collect = self._collect_ensemble(P)
         global_strat = engine is not None and P["spacing"] == "energy-stratified"
 
-        # Phase 1: for each orientation, pool its candidate scan points.
+        # Phase 1: for each orientation, pool its candidate scan points. This is
+        # the long part of a large run (each orientation drives many engine
+        # calls for the energy contact/profile), so report throttled progress.
         orient_data = []
         candidates = []
+        n_orientations = P["number of orientations"]
+        progress = _ProgressReporter(n_orientations, what="orientations")
         try:
-            for orientation in range(1, P["number of orientations"] + 1):
+            for orientation in range(1, n_orientations + 1):
                 Ac = A_pool[int(rng.integers(len(A_pool)))]
                 Bc = B_pool[int(rng.integers(len(B_pool)))]
 
@@ -1685,6 +1879,7 @@ class DimerBuilder(seamm.Node):
                     orient_data,
                     candidates,
                 )
+                progress.step(orientation)
         finally:
             if engine is not None:
                 engine.close()
@@ -1776,11 +1971,14 @@ class DimerBuilder(seamm.Node):
         collect = self._collect_ensemble(P)
         global_strat = engine is not None and P["spacing"] == "energy-stratified"
 
-        # Phase 1: pool candidate scan points from each prepared dimer.
+        # Phase 1: pool candidate scan points from each prepared dimer. The
+        # energy contact/profile drives many engine calls per structure, so
+        # report throttled progress over the pool for a large run.
         orient_data = []
         candidates = []
         fixed_idx = np.asarray(fixed_idx)
         movable_idx = np.asarray(movable_idx)
+        progress = _ProgressReporter(len(pool), what="structures")
         try:
             for orientation, structure in enumerate(pool, start=1):
                 if structure.n_atoms != d0.n_atoms:
@@ -1849,6 +2047,7 @@ class DimerBuilder(seamm.Node):
                     candidates,
                     weight=False,
                 )
+                progress.step(orientation)
         finally:
             if engine is not None:
                 engine.close()
