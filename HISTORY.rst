@@ -2,6 +2,24 @@
 History
 =======
 
+2026.7.27 -- Repulsive-wall coverage, and progress output for long runs
+    * Energy-stratified sampling is flat in interaction energy, which also clips
+      the steep repulsive wall: it caps the repulsive side at the largest positive
+      ΔE level (~+5·kBT), so the training set gets no points higher up the wall and
+      a machine-learned force field extrapolates it too softly -- a stability risk
+      under high-temperature or non-equilibrium dynamics. A new **Add
+      repulsive-wall coverage** option (off by default, since it costs extra energy
+      evaluations) walks the scan further up the wall, to **Wall coverage up to**,
+      and keeps **Wall configurations per bin** in each **Wall coverage spacing**
+      energy bin above the cap. Like the long-range tail coverage, these come out
+      of **Target configurations** (they are not added on top), so raise the target
+      to keep the same coverage of the attractive region; the analysis reports the
+      three-way split between the flat-in-energy core, the tail, and the wall.
+    * Long runs (many orientations, each driving many energy evaluations) now print
+      a throttled progress line -- percent complete, elapsed time, and an estimate
+      of the time remaining -- no more often than once a minute, so short runs stay
+      quiet while a multi-hour run shows that it is making progress.
+
 2026.7.23.1 -- Long-range distance coverage for energy-stratified sampling
     * Energy-stratified sampling is flat in interaction energy, which starves the
       weak long-range tail (beyond ~5 Å the interaction is ≈0, so it gets only
