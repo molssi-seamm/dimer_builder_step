@@ -61,10 +61,12 @@ def _P(**overrides):
     """A full parameter dict with sensible defaults for the build."""
     P = {
         "input mode": "two monomer sets",
-        "monomer A": "A",
+        "monomer A systems": "name is",
+        "monomer A system name": "A",
         "monomer A configurations": "all",
         "monomer A configuration name": "",
-        "monomer B": "B",
+        "monomer B systems": "name is",
+        "monomer B system name": "B",
         "monomer B configurations": "all",
         "monomer B configuration name": "",
         "number of orientations": 5,
@@ -1062,7 +1064,7 @@ def test_build_mode_b_from_prepared_dimer(db_two_waters):
     node = dimer_builder_step.DimerBuilder()
     P = _P()
     P["input mode"] = "prepared dimers"
-    P["monomer A"] = "dimer"
+    P["monomer A system name"] = "dimer"
 
     system, stats = node._build(db, P, np.random.default_rng(6))
 
@@ -1083,7 +1085,7 @@ def test_build_mode_b_default_last_molecule_movable(db_two_waters):
     node = dimer_builder_step.DimerBuilder()
     P = _P()
     P["input mode"] = "prepared dimers"
-    P["monomer A"] = "dimer"
+    P["monomer A system name"] = "dimer"
     system, stats = node._build(db, P, np.random.default_rng(9))
 
     conf = system.configurations[0]
@@ -1113,7 +1115,7 @@ def test_build_mode_b_honors_user_subsets(db_two_waters):
     node = dimer_builder_step.DimerBuilder()
     P = _P()
     P["input mode"] = "prepared dimers"
-    P["monomer A"] = "dimer"
+    P["monomer A system name"] = "dimer"
     system, stats = node._build(db, P, np.random.default_rng(10))
 
     conf = system.configurations[0]
