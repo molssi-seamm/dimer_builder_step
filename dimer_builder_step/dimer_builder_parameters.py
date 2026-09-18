@@ -9,6 +9,58 @@ import seamm
 logger = logging.getLogger(__name__)
 
 
+def _monomer_selection(prefix):
+    """The standard structure-selection block with the keys prefixed by
+    ``prefix`` ('monomer A' or 'monomer B'), defaulting to all configurations of
+    the current system as the conformer pool."""
+    block = {}
+    for key, value in seamm.standard_parameters.structure_selection_parameters.items():
+        new_key = key.replace("source", prefix)
+        block[new_key] = dict(value)
+    block[f"{prefix} systems"]["description"] = f"{prefix[0].upper()}{prefix[1:]}:"
+    block[f"{prefix} systems"]["help_text"] = (
+        f"Where {prefix} comes from: the current system, all systems, systems chosen "
+        "by name, or a variable ($name) holding a list of configurations. In 'prepared "
+        "dimers' mode monomer A is the source of the dimers; monomer B is ignored."
+    )
+    block[f"{prefix} configurations"]["default"] = "all"
+    block[f"{prefix} configurations"]["description"] = "using configurations:"
+    block[f"{prefix} configurations"]["help_text"] = (
+        f"Which configurations of the {prefix} system(s) form the conformer pool: "
+        "all (the default), the current, last or first, or those chosen by name."
+    )
+    block[f"{prefix} configuration name"]["description"] = "matching:"
+    return block
+
+
+# Keys of the standard block, by monomer prefix, for translating to/from it.
+def monomer_selection_keys(prefix):
+    """Map the standard structure-selection keys to this monomer's keys."""
+    return {
+        key: key.replace("source", prefix)
+        for key in seamm.standard_parameters.structure_selection_parameters
+    }
+
+
+def _translate_legacy_monomers(data):
+    """Translate the pre-2026.9.18 'monomer A' / 'monomer B' source entries
+    ('current', a system name, or a $variable) to the prefixed standard block."""
+    data = dict(data)
+    for prefix in ("monomer A", "monomer B"):
+        if prefix not in data:
+            continue
+        spec = data.pop(prefix)
+        value = str(spec.get("value", "current")).strip()
+        if value == "" or value.lower() == "current":
+            data[f"{prefix} systems"] = {"value": "current", "units": None}
+        elif value.startswith("$"):
+            data[f"{prefix} systems"] = {"value": value, "units": None}
+        else:
+            data[f"{prefix} systems"] = {"value": "name is", "units": None}
+            data[f"{prefix} system name"] = {"value": value, "units": None}
+    return data
+
+
 class DimerBuilderParameters(seamm.Parameters):
     """
     The control parameters for Dimer Builder.
@@ -40,97 +92,10 @@ class DimerBuilderParameters(seamm.Parameters):
                 "scans each, splitting it into its two molecules by connectivity."
             ),
         },
-        "monomer A": {
-            "default": "current",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": ("current",),
-            "format_string": "",
-            "description": "Monomer A:",
-            "help_text": (
-                "The source of monomer A: 'current' for the current system, a "
-                "system name, or a variable ($name) holding a list of "
-                "configurations. In 'prepared dimers' mode this is the source of "
-                "the dimers."
-            ),
-        },
-        "monomer A configurations": {
-            "default": "all",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": (
-                "all",
-                "last",
-                "first",
-                "name is",
-                "name matches",
-                "name regexp",
-            ),
-            "format_string": "",
-            "description": "using configurations:",
-            "help_text": (
-                "Which configurations of the monomer A system to use as the "
-                "conformer pool. Ignored when monomer A is a variable holding a "
-                "list of configurations (all of them are used)."
-            ),
-        },
-        "monomer A configuration name": {
-            "default": "",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": tuple(),
-            "format_string": "",
-            "description": "matching:",
-            "help_text": (
-                "The configuration name or pattern, used with 'name is', 'name "
-                "matches', or 'name regexp'."
-            ),
-        },
-        "monomer B": {
-            "default": "current",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": ("current",),
-            "format_string": "",
-            "description": "Monomer B:",
-            "help_text": (
-                "The source of monomer B: 'current' for the current system, a "
-                "system name, or a variable ($name) holding a list of "
-                "configurations. Ignored in 'prepared dimers' mode."
-            ),
-        },
-        "monomer B configurations": {
-            "default": "all",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": (
-                "all",
-                "last",
-                "first",
-                "name is",
-                "name matches",
-                "name regexp",
-            ),
-            "format_string": "",
-            "description": "using configurations:",
-            "help_text": (
-                "Which configurations of the monomer B system to use as the "
-                "conformer pool. Ignored when monomer B is a variable holding a "
-                "list of configurations (all of them are used)."
-            ),
-        },
-        "monomer B configuration name": {
-            "default": "",
-            "kind": "string",
-            "default_units": "",
-            "enumeration": tuple(),
-            "format_string": "",
-            "description": "matching:",
-            "help_text": (
-                "The configuration name or pattern, used with 'name is', 'name "
-                "matches', or 'name regexp'."
-            ),
-        },
+        # Where monomer A and monomer B come from: the standard SEAMM structure
+        # selection, prefixed per monomer (see _monomer_selection below).
+        **_monomer_selection("monomer A"),
+        **_monomer_selection("monomer B"),
         # ------------------------------------------------------------------ #
         # Orientation sampling (N random pairings)
         # ------------------------------------------------------------------ #
@@ -630,3 +595,8 @@ class DimerBuilderParameters(seamm.Parameters):
             },
             data=data,
         )
+
+    def update(self, data):
+        """Update from a dictionary, translating the legacy 'monomer A' /
+        'monomer B' source entries from flowcharts saved before 2026.9.18."""
+        super().update(_translate_legacy_monomers(data))

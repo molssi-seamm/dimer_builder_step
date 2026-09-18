@@ -96,6 +96,8 @@ class TkDimerBuilder(seamm.TkNode):
             "tail coverage",
             "wall coverage",
             "orientation weighting",
+            "monomer A systems",
+            "monomer B systems",
             "monomer A configurations",
             "monomer B configurations",
         ):
@@ -153,14 +155,18 @@ class TkDimerBuilder(seamm.TkNode):
         else:
             sources = ("monomer A",)
         for prefix in sources:
-            add(prefix)
-            add(f"{prefix} configurations")
-            if self[f"{prefix} configurations"].get() in (
-                "name is",
-                "name matches",
-                "name regexp",
+            # The standard structure selection, per monomer: a name field is
+            # shown only beside a choice that needs one.
+            for choice, name in (
+                (f"{prefix} systems", f"{prefix} system name"),
+                (f"{prefix} configurations", f"{prefix} configuration name"),
             ):
-                add(f"{prefix} configuration name")
+                self[choice].grid(row=row, column=0, sticky=tk.EW)
+                widgets.append(self[choice])
+                value = self[choice].get()
+                if value.startswith("name ") or self.is_expr(value):
+                    self[name].grid(row=row, column=1, sticky=tk.EW)
+                row += 1
 
         if mode == "two monomer sets":
             add("number of orientations")

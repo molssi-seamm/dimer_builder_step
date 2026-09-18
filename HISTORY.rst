@@ -1,6 +1,16 @@
 =======
 History
 =======
+2026.9.18 -- Standard structure selection for the monomer sources
+    * Where monomer A and monomer B come from is now SEAMM's standard structure
+      selection, one block per monomer: the current system, all systems, or systems
+      chosen by name (is / matches / regexp), and of those all (the default), the
+      current, last or first configurations, or configurations chosen by name; or a
+      variable holding a list of configurations. Flowcharts saved with the old
+      "Monomer A" / "Monomer B" fields (current, a system name, or a variable) are
+      translated when loaded.
+    * Requires seamm 2026.9.18.1 and molsystem 2026.9.17.2 or later.
+
 
 2026.7.27 -- Repulsive-wall coverage, and progress output for long runs
     * Energy-stratified sampling is flat in interaction energy, which also clips

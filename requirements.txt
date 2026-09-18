@@ -1,9 +1,9 @@
-seamm
-seamm-util
-seamm-widgets
-seamm_mdi
-molsystem
 mendeleev
+molsystem>=2026.9.17.2
 numpy
 plotly
 scikit-learn
+seamm>=2026.9.18.1
+seamm-util
+seamm-widgets
+seamm_mdi

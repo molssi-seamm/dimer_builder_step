@@ -10,6 +10,7 @@ import time
 import numpy as np
 
 import dimer_builder_step
+from dimer_builder_step.dimer_builder_parameters import monomer_selection_keys
 import molsystem
 from molsystem import random_rotation_matrix
 import seamm
@@ -296,15 +297,18 @@ class DimerBuilder(seamm.Node):
             P = self.parameters.values_to_dict()
 
         if P["input mode"] == "two monomer sets":
+            pool_a = self._pool_description(P, "monomer A")
+            pool_b = self._pool_description(P, "monomer B")
             text = (
-                f"Build dimers from monomer A ({P['monomer A']}) and monomer B "
-                f"({P['monomer B']}), sampling {P['number of orientations']} random "
+                f"Build dimers from monomer A ({pool_a}) and monomer B ({pool_b}), "
+                f"sampling {P['number of orientations']} random "
                 "relative orientations (each a random conformer of A and of B at a "
                 "random orientation)."
             )
         else:
             text = (
-                f"Scan the prepared structures from {P['monomer A']}, sliding the "
+                "Scan the prepared structures "
+                f"({self._pool_description(P, 'monomer A')}), sliding the "
                 "'movable' group away from and into the 'fixed' group along their "
                 "center-to-center axis. The two groups are taken from 'fixed'/"
                 "'movable' subsets if present, otherwise the last molecule is "
@@ -663,51 +667,26 @@ class DimerBuilder(seamm.Node):
             seed = int(seed)
         return np.random.default_rng(int(seed))
 
-    def _resolve_pool(self, spec, configurations, name, system_db):
-        """Resolve an input specification to a list of configurations.
+    def _resolve_pool(self, P, prefix, system_db):
+        """The conformer pool for ``prefix`` ('monomer A' or 'monomer B'): the
+        standard SEAMM structure selection, read from the prefixed parameters."""
+        sub = {
+            key: P[monomer_key]
+            for key, monomer_key in monomer_selection_keys(prefix).items()
+        }
+        return seamm.standard_parameters.select_configurations(
+            system_db, sub, errors=False
+        )
 
-        ``spec`` is either an already-dereferenced list of configurations (from a
-        ``$variable``), or a string: 'current', a system name, or '$variable'.
-        ``configurations``/``name`` select within a system (ignored for a list).
-        """
-        # A variable holding a list of configurations: use all of them.
-        if not isinstance(spec, str):
-            return list(spec)
-
-        spec = spec.strip()
-        if spec.startswith("$"):
-            value = self.get_variable(spec[1:])
-            return list(value)
-
-        if spec == "" or spec.lower() == "current":
-            system = system_db.system
-        else:
-            system = system_db.get_system(spec)
-
-        return self._select_configurations(system, configurations, name)
-
-    def _select_configurations(self, system, how, name):
-        """Pick configurations from a system, mirroring the loop step."""
-        configurations = system.configurations
-        if how == "all":
-            return configurations
-        elif how == "last":
-            return [configurations[-1]]
-        elif how == "first":
-            return [configurations[0]]
-        elif how == "name is":
-            return [c for c in configurations if c.name == name]
-        elif how == "name matches":
-            import fnmatch
-
-            return [c for c in configurations if fnmatch.fnmatch(c.name, name)]
-        elif how == "name regexp":
-            import re
-
-            pattern = re.compile(name)
-            return [c for c in configurations if pattern.search(c.name)]
-        else:
-            raise ValueError(f"Unknown configuration selector '{how}'.")
+    def _pool_description(self, P, prefix):
+        """A phrase describing where ``prefix`` comes from, for the description."""
+        sub = {
+            key: P[monomer_key]
+            for key, monomer_key in monomer_selection_keys(prefix).items()
+        }
+        text = seamm.standard_parameters.structure_selection_description(sub)
+        text = text.replace(" will be used.", "").replace("The structures in ", "")
+        return text[0].lower() + text[1:]
 
     def _contact_distance(self, A_xyz, A_radii, B_xyz, B_radii, axis):
         """The center-to-center distance at which A and B first touch.
@@ -1772,18 +1751,8 @@ class DimerBuilder(seamm.Node):
 
     def _build_from_monomers(self, system_db, P, rng):
         """Mode A: assemble dimers from two monomer conformer pools."""
-        A_pool = self._resolve_pool(
-            P["monomer A"],
-            P["monomer A configurations"],
-            P["monomer A configuration name"],
-            system_db,
-        )
-        B_pool = self._resolve_pool(
-            P["monomer B"],
-            P["monomer B configurations"],
-            P["monomer B configuration name"],
-            system_db,
-        )
+        A_pool = self._resolve_pool(P, "monomer A", system_db)
+        B_pool = self._resolve_pool(P, "monomer B", system_db)
         if len(A_pool) == 0 or len(B_pool) == 0:
             raise ValueError("Both monomer A and monomer B must supply structures.")
 
@@ -1930,12 +1899,7 @@ class DimerBuilder(seamm.Node):
         The two groups come from 'fixed'/'movable' subsets on the input if they
         exist; otherwise the last molecule is movable and the rest are fixed.
         """
-        pool = self._resolve_pool(
-            P["monomer A"],
-            P["monomer A configurations"],
-            P["monomer A configuration name"],
-            system_db,
-        )
+        pool = self._resolve_pool(P, "monomer A", system_db)
         if len(pool) == 0:
             raise ValueError("No prepared structures were found.")
 
