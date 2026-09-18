@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.7.27 documentation</title>
+    <title>dimer_builder_step.dimer_builder_parameters &#8212; SEAMM Dimer Builder Plug-in 2026.9.18 documentation</title>
   
   
   
@@ -26,8 +26,8 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=cb8930eaaf36d9849b67" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=cb8930eaaf36d9849b67" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
     <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
@@ -35,12 +35,12 @@
     <link rel="stylesheet" type="text/css" href="../../_static/css/custom.css?v=c224919a" />
   
   <!-- So that users can add custom icons -->
-  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=cb8930eaaf36d9849b67"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=cb8930eaaf36d9849b67" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=cb8930eaaf36d9849b67" />
 
-    <script src="../../_static/documentation_options.js?v=f166bad5"></script>
+    <script src="../../_static/documentation_options.js?v=4c890157"></script>
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
@@ -52,7 +52,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.27" />
+  <meta name="docsearch:version" content="2026.9.18" />
   
     
     <script src="../../_static/searchtools.js"></script>
@@ -492,9 +492,9 @@
                   
   <h1>Source code for dimer_builder_step.dimer_builder_parameters</h1><div class="highlight"><pre>
 <span></span><span class="c1"># -*- coding: utf-8 -*-</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 <span class="sd">Control parameters for the Dimer Builder step in a SEAMM flowchart</span>
-<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">seamm</span>
@@ -502,604 +502,572 @@
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_monomer_selection</span><span class="p">(</span><span class="n">prefix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""The standard structure-selection block with the keys prefixed by</span>
+<span class="sd">    ``prefix`` ('monomer A' or 'monomer B'), defaulting to all configurations of</span>
+<span class="sd">    the current system as the conformer pool."""</span>
+    <span class="n">block</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">seamm</span><span class="o">.</span><span class="n">standard_parameters</span><span class="o">.</span><span class="n">structure_selection_parameters</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">new_key</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"source"</span><span class="p">,</span> <span class="n">prefix</span><span class="p">)</span>
+        <span class="n">block</span><span class="p">[</span><span class="n">new_key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> systems"</span><span class="p">][</span><span class="s2">"description"</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}{</span><span class="n">prefix</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span><span class="si">}</span><span class="s2">:"</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> systems"</span><span class="p">][</span><span class="s2">"help_text"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Where </span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> comes from: the current system, all systems, systems chosen "</span>
+        <span class="s2">"by name, or a variable ($name) holding a list of configurations. In 'prepared "</span>
+        <span class="s2">"dimers' mode monomer A is the source of the dimers; monomer B is ignored."</span>
+    <span class="p">)</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> configurations"</span><span class="p">][</span><span class="s2">"default"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"all"</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> configurations"</span><span class="p">][</span><span class="s2">"description"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"using configurations:"</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> configurations"</span><span class="p">][</span><span class="s2">"help_text"</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">"Which configurations of the </span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> system(s) form the conformer pool: "</span>
+        <span class="s2">"all (the default), the current, last or first, or those chosen by name."</span>
+    <span class="p">)</span>
+    <span class="n">block</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> configuration name"</span><span class="p">][</span><span class="s2">"description"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"matching:"</span>
+    <span class="k">return</span> <span class="n">block</span>
+
+
+<span class="c1"># Keys of the standard block, by monomer prefix, for translating to/from it.</span>
+<div class="viewcode-block" id="monomer_selection_keys">
+<a class="viewcode-back" href="../../api/dimer_builder_step.html#dimer_builder_step.dimer_builder_parameters.monomer_selection_keys">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">monomer_selection_keys</span><span class="p">(</span><span class="n">prefix</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Map the standard structure-selection keys to this monomer's keys."""</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">key</span><span class="p">:</span> <span class="n">key</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"source"</span><span class="p">,</span> <span class="n">prefix</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">seamm</span><span class="o">.</span><span class="n">standard_parameters</span><span class="o">.</span><span class="n">structure_selection_parameters</span>
+    <span class="p">}</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_translate_legacy_monomers</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Translate the pre-2026.9.18 'monomer A' / 'monomer B' source entries</span>
+<span class="sd">    ('current', a system name, or a $variable) to the prefixed standard block."""</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">prefix</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"monomer A"</span><span class="p">,</span> <span class="s2">"monomer B"</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">prefix</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">spec</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">prefix</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">,</span> <span class="s2">"current"</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">==</span> <span class="s2">""</span> <span class="ow">or</span> <span class="n">value</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"current"</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> systems"</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="s2">"current"</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="k">elif</span> <span class="n">value</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"$"</span><span class="p">):</span>
+            <span class="n">data</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> systems"</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">data</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> systems"</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="s2">"name is"</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+            <span class="n">data</span><span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> system name"</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span> <span class="s2">"units"</span><span class="p">:</span> <span class="kc">None</span><span class="p">}</span>
+    <span class="k">return</span> <span class="n">data</span>
+
+
 <div class="viewcode-block" id="DimerBuilderParameters">
 <a class="viewcode-back" href="../../api/dimer_builder_step.html#dimer_builder_step.dimer_builder_parameters.DimerBuilderParameters">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">DimerBuilderParameters</span><span class="p">(</span><span class="n">seamm</span><span class="o">.</span><span class="n">Parameters</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    The control parameters for Dimer Builder.</span>
 
 <span class="sd">    The keys are the parameters for this plug-in; each value is a dictionary</span>
 <span class="sd">    describing that parameter (default, kind, units, enumeration, format,</span>
 <span class="sd">    description, help). This is the Tier-1 set (engine-free generation); the</span>
-<span class="sd">    &quot;energy&quot; contact method and any further options are layered on later.</span>
+<span class="sd">    "energy" contact method and any further options are layered on later.</span>
 
 <span class="sd">    parameters : {str: {str: str}}</span>
 <span class="sd">        A dictionary containing the parameters for the current step.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">parameters</span> <span class="o">=</span> <span class="p">{</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
         <span class="c1"># Input: where the monomers (or prepared dimers) come from</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="s2">&quot;input mode&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;two monomer sets&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;two monomer sets&quot;</span><span class="p">,</span> <span class="s2">&quot;prepared dimers&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Input:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;&#39;two monomer sets&#39; assembles dimers from conformers of monomer &quot;</span>
-                <span class="s2">&quot;A and monomer B at random relative orientations. &#39;prepared &quot;</span>
-                <span class="s2">&quot;dimers&#39; takes already-assembled dimers (from &#39;monomer A&#39;) and &quot;</span>
-                <span class="s2">&quot;scans each, splitting it into its two molecules by connectivity.&quot;</span>
+        <span class="s2">"input mode"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"two monomer sets"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"two monomer sets"</span><span class="p">,</span> <span class="s2">"prepared dimers"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Input:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"'two monomer sets' assembles dimers from conformers of monomer "</span>
+                <span class="s2">"A and monomer B at random relative orientations. 'prepared "</span>
+                <span class="s2">"dimers' takes already-assembled dimers (from 'monomer A') and "</span>
+                <span class="s2">"scans each, splitting it into its two molecules by connectivity."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;monomer A&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;current&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;current&quot;</span><span class="p">,),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Monomer A:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The source of monomer A: &#39;current&#39; for the current system, a &quot;</span>
-                <span class="s2">&quot;system name, or a variable ($name) holding a list of &quot;</span>
-                <span class="s2">&quot;configurations. In &#39;prepared dimers&#39; mode this is the source of &quot;</span>
-                <span class="s2">&quot;the dimers.&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;monomer A configurations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;last&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;first&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name is&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name matches&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name regexp&quot;</span><span class="p">,</span>
-            <span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;using configurations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Which configurations of the monomer A system to use as the &quot;</span>
-                <span class="s2">&quot;conformer pool. Ignored when monomer A is a variable holding a &quot;</span>
-                <span class="s2">&quot;list of configurations (all of them are used).&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;monomer A configuration name&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;matching:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The configuration name or pattern, used with &#39;name is&#39;, &#39;name &quot;</span>
-                <span class="s2">&quot;matches&#39;, or &#39;name regexp&#39;.&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;monomer B&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;current&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;current&quot;</span><span class="p">,),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Monomer B:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The source of monomer B: &#39;current&#39; for the current system, a &quot;</span>
-                <span class="s2">&quot;system name, or a variable ($name) holding a list of &quot;</span>
-                <span class="s2">&quot;configurations. Ignored in &#39;prepared dimers&#39; mode.&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;monomer B configurations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;all&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;last&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;first&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name is&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name matches&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;name regexp&quot;</span><span class="p">,</span>
-            <span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;using configurations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Which configurations of the monomer B system to use as the &quot;</span>
-                <span class="s2">&quot;conformer pool. Ignored when monomer B is a variable holding a &quot;</span>
-                <span class="s2">&quot;list of configurations (all of them are used).&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;monomer B configuration name&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;matching:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The configuration name or pattern, used with &#39;name is&#39;, &#39;name &quot;</span>
-                <span class="s2">&quot;matches&#39;, or &#39;name regexp&#39;.&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
+        <span class="c1"># Where monomer A and monomer B come from: the standard SEAMM structure</span>
+        <span class="c1"># selection, prefixed per monomer (see _monomer_selection below).</span>
+        <span class="o">**</span><span class="n">_monomer_selection</span><span class="p">(</span><span class="s2">"monomer A"</span><span class="p">),</span>
+        <span class="o">**</span><span class="n">_monomer_selection</span><span class="p">(</span><span class="s2">"monomer B"</span><span class="p">),</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
         <span class="c1"># Orientation sampling (N random pairings)</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="s2">&quot;number of orientations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Number of orientations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How many samples to generate. Each sample draws a random &quot;</span>
-                <span class="s2">&quot;conformer of monomer A, a random conformer of monomer B, and a &quot;</span>
-                <span class="s2">&quot;random relative orientation, then is scanned radially.&quot;</span>
+        <span class="s2">"number of orientations"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">10</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Number of orientations:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How many samples to generate. Each sample draws a random "</span>
+                <span class="s2">"conformer of monomer A, a random conformer of monomer B, and a "</span>
+                <span class="s2">"random relative orientation, then is scanned radially."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;random seed&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;random&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;random&quot;</span><span class="p">,),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Random seed:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The seed for the random-number generator. Use &#39;random&#39; for a &quot;</span>
-                <span class="s2">&quot;fresh, non-reproducible seed, or an integer for reproducible &quot;</span>
-                <span class="s2">&quot;orientations.&quot;</span>
+        <span class="s2">"random seed"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"random"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"random"</span><span class="p">,),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Random seed:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The seed for the random-number generator. Use 'random' for a "</span>
+                <span class="s2">"fresh, non-reproducible seed, or an integer for reproducible "</span>
+                <span class="s2">"orientations."</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
         <span class="c1"># Radial scan: surface-gap coordinate, geometric spacing</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="s2">&quot;contact method&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;van der Waals radii&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;van der Waals radii&quot;</span><span class="p">,</span> <span class="s2">&quot;energy&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Find contact using:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How to locate the contact distance that anchors the scan. &#39;van &quot;</span>
-                <span class="s2">&quot;der Waals radii&#39; is a fast geometric estimate (Tier 1). &#39;energy&#39; &quot;</span>
-                <span class="s2">&quot;uses the energy from the sub-flowchart to find the onset of &quot;</span>
-                <span class="s2">&quot;repulsion (requires an engine in the sub-flowchart).&quot;</span>
+        <span class="s2">"contact method"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"van der Waals radii"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"van der Waals radii"</span><span class="p">,</span> <span class="s2">"energy"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Find contact using:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How to locate the contact distance that anchors the scan. 'van "</span>
+                <span class="s2">"der Waals radii' is a fast geometric estimate (Tier 1). 'energy' "</span>
+                <span class="s2">"uses the energy from the sub-flowchart to find the onset of "</span>
+                <span class="s2">"repulsion (requires an engine in the sub-flowchart)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;innermost gap&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.2f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Innermost gap:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The closest point of the scan, measured as the gap beyond &quot;</span>
-                <span class="s2">&quot;contact (0 = touching). A negative value starts inside contact, &quot;</span>
-                <span class="s2">&quot;i.e. with a slight overlap. Not used for &#39;energy-stratified&#39; &quot;</span>
-                <span class="s2">&quot;spacing, which anchors on the energy minimum and sets its inner &quot;</span>
-                <span class="s2">&quot;bound by energy (the repulsive-wall target level).&quot;</span>
+        <span class="s2">"innermost gap"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="o">-</span><span class="mf">0.5</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".2f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Innermost gap:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The closest point of the scan, measured as the gap beyond "</span>
+                <span class="s2">"contact (0 = touching). A negative value starts inside contact, "</span>
+                <span class="s2">"i.e. with a slight overlap. Not used for 'energy-stratified' "</span>
+                <span class="s2">"spacing, which anchors on the energy minimum and sets its inner "</span>
+                <span class="s2">"bound by energy (the repulsive-wall target level)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;maximum separation&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Maximum separation:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;The largest center-of-mass separation to scan out to.&quot;</span><span class="p">),</span>
+        <span class="s2">"maximum separation"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">10.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Maximum separation:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"The largest center-of-mass separation to scan out to."</span><span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;spacing&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;geometric&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;geometric&quot;</span><span class="p">,</span> <span class="s2">&quot;linear&quot;</span><span class="p">,</span> <span class="s2">&quot;explicit&quot;</span><span class="p">,</span> <span class="s2">&quot;energy-stratified&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Spacing:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How the scan points are distributed along the gap coordinate. &quot;</span>
-                <span class="s2">&quot;&#39;geometric&#39; clusters points near contact and thins them in the &quot;</span>
-                <span class="s2">&quot;tail; &#39;linear&#39; spaces them evenly; &#39;explicit&#39; uses the list in &quot;</span>
-                <span class="s2">&quot;&#39;separations&#39;. &#39;energy-stratified&#39; places points at target &quot;</span>
-                <span class="s2">&quot;interaction-energy levels along the ΔE(R) profile (requires the &quot;</span>
-                <span class="s2">&quot;&#39;energy&#39; contact method), giving a flat-in-energy sample from the &quot;</span>
-                <span class="s2">&quot;repulsive wall through the well to the asymptote.&quot;</span>
+        <span class="s2">"spacing"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"geometric"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"geometric"</span><span class="p">,</span> <span class="s2">"linear"</span><span class="p">,</span> <span class="s2">"explicit"</span><span class="p">,</span> <span class="s2">"energy-stratified"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Spacing:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How the scan points are distributed along the gap coordinate. "</span>
+                <span class="s2">"'geometric' clusters points near contact and thins them in the "</span>
+                <span class="s2">"tail; 'linear' spaces them evenly; 'explicit' uses the list in "</span>
+                <span class="s2">"'separations'. 'energy-stratified' places points at target "</span>
+                <span class="s2">"interaction-energy levels along the ΔE(R) profile (requires the "</span>
+                <span class="s2">"'energy' contact method), giving a flat-in-energy sample from the "</span>
+                <span class="s2">"repulsive wall through the well to the asymptote."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;number of separations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Number of separations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How many points to place along each radial profile, for &quot;</span>
-                <span class="s2">&quot;&#39;geometric&#39; or &#39;linear&#39; spacing. For &#39;energy-stratified&#39; spacing &quot;</span>
-                <span class="s2">&quot;this is the resolution of the ΔE(R) profile (the number of &quot;</span>
-                <span class="s2">&quot;energy evaluations), not the number of output points -- those are &quot;</span>
-                <span class="s2">&quot;set by the &#39;energy levels&#39;.&quot;</span>
+        <span class="s2">"number of separations"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">15</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Number of separations:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How many points to place along each radial profile, for "</span>
+                <span class="s2">"'geometric' or 'linear' spacing. For 'energy-stratified' spacing "</span>
+                <span class="s2">"this is the resolution of the ΔE(R) profile (the number of "</span>
+                <span class="s2">"energy evaluations), not the number of output points -- those are "</span>
+                <span class="s2">"set by the 'energy levels'."</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="c1"># Energy-stratified spacing (needs the &#39;energy&#39; contact method)</span>
+        <span class="c1"># Energy-stratified spacing (needs the 'energy' contact method)</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="s2">&quot;energy levels&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;-De, -De/2, 0, kBT, 5*kBT&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;ΔE levels:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Sets the interaction-energy window for &#39;energy-stratified&#39; &quot;</span>
-                <span class="s2">&quot;spacing, as a comma-separated list of linear expressions in the &quot;</span>
-                <span class="s2">&quot;well depth &#39;De&#39; and thermal energy &#39;kBT&#39; (kJ/mol) -- e.g. &quot;</span>
-                <span class="s2">&quot;&#39;-De, -De/2, 0, kBT, 5*kBT&#39;. The largest positive value caps the &quot;</span>
-                <span class="s2">&quot;repulsive wall (points above it are dropped); the candidates are &quot;</span>
-                <span class="s2">&quot;then globally binned across this range and capped per bin.&quot;</span>
+        <span class="s2">"energy levels"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"-De, -De/2, 0, kBT, 5*kBT"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"ΔE levels:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Sets the interaction-energy window for 'energy-stratified' "</span>
+                <span class="s2">"spacing, as a comma-separated list of linear expressions in the "</span>
+                <span class="s2">"well depth 'De' and thermal energy 'kBT' (kJ/mol) -- e.g. "</span>
+                <span class="s2">"'-De, -De/2, 0, kBT, 5*kBT'. The largest positive value caps the "</span>
+                <span class="s2">"repulsive wall (points above it are dropped); the candidates are "</span>
+                <span class="s2">"then globally binned across this range and capped per bin."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;sampling temperature&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">300.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;K&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling temperature:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The temperature that sets kBT for the thermal &#39;energy levels&#39; in &quot;</span>
-                <span class="s2">&quot;&#39;energy-stratified&#39; spacing.&quot;</span>
+        <span class="s2">"sampling temperature"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">300.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"K"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Sampling temperature:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The temperature that sets kBT for the thermal 'energy levels' in "</span>
+                <span class="s2">"'energy-stratified' spacing."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;orientation weighting&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;none&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;none&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;reject shallow orientations&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;downweight by depth&quot;</span><span class="p">,</span>
+        <span class="s2">"orientation weighting"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"none"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"none"</span><span class="p">,</span>
+                <span class="s2">"reject shallow orientations"</span><span class="p">,</span>
+                <span class="s2">"downweight by depth"</span><span class="p">,</span>
             <span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Weight orientations by well depth:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Optional per-orientation pre-filter for &#39;energy-stratified&#39; &quot;</span>
-                <span class="s2">&quot;spacing (&#39;two monomer sets&#39; mode). The default &#39;none&#39; keeps every &quot;</span>
-                <span class="s2">&quot;orientation and lets the global energy-stratification balance the &quot;</span>
-                <span class="s2">&quot;ensemble. &#39;reject shallow orientations&#39; skips any orientation whose &quot;</span>
-                <span class="s2">&quot;well is shallower than the &#39;minimum well depth&#39;; &#39;downweight by &quot;</span>
-                <span class="s2">&quot;depth&#39; keeps each with probability 1 - 2^(-De/minimum well depth). &quot;</span>
-                <span class="s2">&quot;Prepared dimers are always kept.&quot;</span>
-            <span class="p">),</span>
-        <span class="p">},</span>
-        <span class="s2">&quot;minimum well depth&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">2.5</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.2f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Minimum well depth:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;For &#39;reject shallow orientations&#39;, the smallest ΔE well depth an &quot;</span>
-                <span class="s2">&quot;orientation must have to be kept (defaults to ~kBT at 300 K). For &quot;</span>
-                <span class="s2">&quot;&#39;downweight by depth&#39;, the half-weight depth. Ignored when &quot;</span>
-                <span class="s2">&quot;orientation weighting is &#39;none&#39;.&quot;</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Weight orientations by well depth:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Optional per-orientation pre-filter for 'energy-stratified' "</span>
+                <span class="s2">"spacing ('two monomer sets' mode). The default 'none' keeps every "</span>
+                <span class="s2">"orientation and lets the global energy-stratification balance the "</span>
+                <span class="s2">"ensemble. 'reject shallow orientations' skips any orientation whose "</span>
+                <span class="s2">"well is shallower than the 'minimum well depth'; 'downweight by "</span>
+                <span class="s2">"depth' keeps each with probability 1 - 2^(-De/minimum well depth). "</span>
+                <span class="s2">"Prepared dimers are always kept."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;selection method&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;energy bins + diversity&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;descriptor diversity&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;energy bins&quot;</span><span class="p">,</span>
-            <span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Down-select by:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How to down-select the pooled candidate configurations for &quot;</span>
-                <span class="s2">&quot;&#39;energy-stratified&#39; spacing (all target about &#39;target &quot;</span>
-                <span class="s2">&quot;configurations&#39;). &#39;energy bins + diversity&#39; bins by interaction &quot;</span>
-                <span class="s2">&quot;energy (flat in energy) and, within each bin, keeps a &quot;</span>
-                <span class="s2">&quot;geometrically diverse, de-duplicated subset (DIRECT clustering of &quot;</span>
-                <span class="s2">&quot;the geometric collective variables). &#39;descriptor diversity&#39; is a &quot;</span>
-                <span class="s2">&quot;single global DIRECT clustering over those variables PLUS the &quot;</span>
-                <span class="s2">&quot;interaction energy (scaled by &#39;energy weight&#39;) -- maximally &quot;</span>
-                <span class="s2">&quot;diverse, but flatness depends on the weight. &#39;energy bins&#39; caps &quot;</span>
-                <span class="s2">&quot;each energy bin equally with a random pick (flat in energy, no &quot;</span>
-                <span class="s2">&quot;geometric de-duplication).&quot;</span>
+        <span class="s2">"minimum well depth"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">2.5</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"kJ/mol"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".2f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Minimum well depth:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"For 'reject shallow orientations', the smallest ΔE well depth an "</span>
+                <span class="s2">"orientation must have to be kept (defaults to ~kBT at 300 K). For "</span>
+                <span class="s2">"'downweight by depth', the half-weight depth. Ignored when "</span>
+                <span class="s2">"orientation weighting is 'none'."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;energy weight&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">8.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Energy weight:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;For the &#39;descriptor diversity&#39; selection: how strongly the &quot;</span>
-                <span class="s2">&quot;interaction energy counts relative to each geometric collective &quot;</span>
-                <span class="s2">&quot;variable in the clustering (1 = equal; larger keeps the sample &quot;</span>
-                <span class="s2">&quot;flatter in energy at the cost of some geometric diversity).&quot;</span>
+        <span class="s2">"selection method"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"energy bins + diversity"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"energy bins + diversity"</span><span class="p">,</span>
+                <span class="s2">"descriptor diversity"</span><span class="p">,</span>
+                <span class="s2">"energy bins"</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Down-select by:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How to down-select the pooled candidate configurations for "</span>
+                <span class="s2">"'energy-stratified' spacing (all target about 'target "</span>
+                <span class="s2">"configurations'). 'energy bins + diversity' bins by interaction "</span>
+                <span class="s2">"energy (flat in energy) and, within each bin, keeps a "</span>
+                <span class="s2">"geometrically diverse, de-duplicated subset (DIRECT clustering of "</span>
+                <span class="s2">"the geometric collective variables). 'descriptor diversity' is a "</span>
+                <span class="s2">"single global DIRECT clustering over those variables PLUS the "</span>
+                <span class="s2">"interaction energy (scaled by 'energy weight') -- maximally "</span>
+                <span class="s2">"diverse, but flatness depends on the weight. 'energy bins' caps "</span>
+                <span class="s2">"each energy bin equally with a random pick (flat in energy, no "</span>
+                <span class="s2">"geometric de-duplication)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;number of energy bins&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Number of energy bins:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;For &#39;energy-stratified&#39; spacing: the number of interaction-energy &quot;</span>
-                <span class="s2">&quot;bins the pooled candidate configurations are sorted into for the &quot;</span>
-                <span class="s2">&quot;global stratification. Each bin is capped at the same count, so the &quot;</span>
-                <span class="s2">&quot;kept ensemble is flat in energy from the repulsive wall through the &quot;</span>
-                <span class="s2">&quot;well to the asymptote.&quot;</span>
+        <span class="s2">"energy weight"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">8.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Energy weight:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"For the 'descriptor diversity' selection: how strongly the "</span>
+                <span class="s2">"interaction energy counts relative to each geometric collective "</span>
+                <span class="s2">"variable in the clustering (1 = equal; larger keeps the sample "</span>
+                <span class="s2">"flatter in energy at the cost of some geometric diversity)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;target configurations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Target configurations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;For &#39;energy-stratified&#39; spacing: the approximate total number of &quot;</span>
-                <span class="s2">&quot;configurations to keep. The per-bin cap is this divided by the &quot;</span>
-                <span class="s2">&quot;number of energy bins; sparsely-populated energy ranges (e.g. the &quot;</span>
-                <span class="s2">&quot;deep well) may yield fewer, so the actual total can be smaller. &quot;</span>
-                <span class="s2">&quot;Increase the number of orientations to fill the deep bins.&quot;</span>
+        <span class="s2">"number of energy bins"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Number of energy bins:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"For 'energy-stratified' spacing: the number of interaction-energy "</span>
+                <span class="s2">"bins the pooled candidate configurations are sorted into for the "</span>
+                <span class="s2">"global stratification. Each bin is capped at the same count, so the "</span>
+                <span class="s2">"kept ensemble is flat in energy from the repulsive wall through the "</span>
+                <span class="s2">"well to the asymptote."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;tail coverage&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Add long-range distance coverage:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Energy-stratified selection is flat in energy, which starves the &quot;</span>
-                <span class="s2">&quot;weak long-range tail (5+ Å maps to ≈0 ΔE, so it gets only ~one &quot;</span>
-                <span class="s2">&quot;bin&#39;s worth) even though molecular dynamics traverses it &quot;</span>
-                <span class="s2">&quot;constantly. With this on, the kept set is supplemented with a &quot;</span>
-                <span class="s2">&quot;distance-coverage floor and a few far-separation anchors so the &quot;</span>
-                <span class="s2">&quot;tail is sampled independently of interaction strength: energy-flat &quot;</span>
-                <span class="s2">&quot;where the interaction is strong, distance-dense in the weak tail.&quot;</span>
+        <span class="s2">"target configurations"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">300</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Target configurations:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"For 'energy-stratified' spacing: the approximate total number of "</span>
+                <span class="s2">"configurations to keep. The per-bin cap is this divided by the "</span>
+                <span class="s2">"number of energy bins; sparsely-populated energy ranges (e.g. the "</span>
+                <span class="s2">"deep well) may yield fewer, so the actual total can be smaller. "</span>
+                <span class="s2">"Increase the number of orientations to fill the deep bins."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;tail minimum separation&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">4.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Tail coverage from:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The start of the distance-coverage floor. From here out to the &quot;</span>
-                <span class="s2">&quot;maximum separation the kept set is guaranteed a minimum number of &quot;</span>
-                <span class="s2">&quot;configurations in each separation bin (over a spread of &quot;</span>
-                <span class="s2">&quot;orientations), on top of the energy-based selection.&quot;</span>
+        <span class="s2">"tail coverage"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"yes"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"boolean"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"no"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Add long-range distance coverage:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Energy-stratified selection is flat in energy, which starves the "</span>
+                <span class="s2">"weak long-range tail (5+ Å maps to ≈0 ΔE, so it gets only ~one "</span>
+                <span class="s2">"bin's worth) even though molecular dynamics traverses it "</span>
+                <span class="s2">"constantly. With this on, the kept set is supplemented with a "</span>
+                <span class="s2">"distance-coverage floor and a few far-separation anchors so the "</span>
+                <span class="s2">"tail is sampled independently of interaction strength: energy-flat "</span>
+                <span class="s2">"where the interaction is strong, distance-dense in the weak tail."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;tail spacing&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.2f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Tail coverage spacing:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The separation-bin width of the distance-coverage floor &quot;</span>
-                <span class="s2">&quot;(smaller = denser tail coverage).&quot;</span>
+        <span class="s2">"tail minimum separation"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">4.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Tail coverage from:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The start of the distance-coverage floor. From here out to the "</span>
+                <span class="s2">"maximum separation the kept set is guaranteed a minimum number of "</span>
+                <span class="s2">"configurations in each separation bin (over a spread of "</span>
+                <span class="s2">"orientations), on top of the energy-based selection."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;tail configurations per bin&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Tail configurations per bin:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The number of configurations to keep in each separation bin of &quot;</span>
-                <span class="s2">&quot;the distance-coverage floor (chosen for geometric diversity). The &quot;</span>
-                <span class="s2">&quot;tail floor and anchors come OUT of &#39;target configurations&#39; (they &quot;</span>
-                <span class="s2">&quot;are not added on top), so raise the target to keep the same &quot;</span>
-                <span class="s2">&quot;energy-region coverage. ~5-8 per bin is a good starting density &quot;</span>
-                <span class="s2">&quot;for the constantly-traversed 5-8 Å region.&quot;</span>
+        <span class="s2">"tail spacing"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".2f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Tail coverage spacing:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The separation-bin width of the distance-coverage floor "</span>
+                <span class="s2">"(smaller = denser tail coverage)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;asymptote anchors&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Asymptote anchors:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How many far-separation configurations (between the maximum &quot;</span>
-                <span class="s2">&quot;separation and the &#39;anchor separation&#39;, over a spread of &quot;</span>
-                <span class="s2">&quot;orientations) to add to pin the interaction energy to zero at &quot;</span>
-                <span class="s2">&quot;large distance. 0 disables them.&quot;</span>
+        <span class="s2">"tail configurations per bin"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Tail configurations per bin:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The number of configurations to keep in each separation bin of "</span>
+                <span class="s2">"the distance-coverage floor (chosen for geometric diversity). The "</span>
+                <span class="s2">"tail floor and anchors come OUT of 'target configurations' (they "</span>
+                <span class="s2">"are not added on top), so raise the target to keep the same "</span>
+                <span class="s2">"energy-region coverage. ~5-8 per bin is a good starting density "</span>
+                <span class="s2">"for the constantly-traversed 5-8 Å region."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;anchor separation&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">15.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Anchor separation:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The largest center-to-center separation sampled for the asymptote &quot;</span>
-                <span class="s2">&quot;anchors (the profile is extended to here so the ≈0 tail is &quot;</span>
-                <span class="s2">&quot;represented out to this distance).&quot;</span>
+        <span class="s2">"asymptote anchors"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Asymptote anchors:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How many far-separation configurations (between the maximum "</span>
+                <span class="s2">"separation and the 'anchor separation', over a spread of "</span>
+                <span class="s2">"orientations) to add to pin the interaction energy to zero at "</span>
+                <span class="s2">"large distance. 0 disables them."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;wall coverage&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;no&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Add repulsive-wall coverage:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Energy-stratified selection caps the repulsive side at the largest &quot;</span>
-                <span class="s2">&quot;positive &#39;ΔE level&#39; (~+5·kBT), so the training set gets no points &quot;</span>
-                <span class="s2">&quot;on the steep repulsive wall above that and a machine-learned force &quot;</span>
-                <span class="s2">&quot;field extrapolates the wall too softly -- a stability risk under &quot;</span>
-                <span class="s2">&quot;high-temperature or non-equilibrium dynamics. With this on, the &quot;</span>
-                <span class="s2">&quot;kept set is supplemented with short-separation configurations &quot;</span>
-                <span class="s2">&quot;walked up the wall to &#39;Wall coverage up to&#39;, spread in energy, so &quot;</span>
-                <span class="s2">&quot;the hard wall is sampled directly. Off by default (a robustness / &quot;</span>
-                <span class="s2">&quot;high-T add-on that costs extra energy evaluations).&quot;</span>
+        <span class="s2">"anchor separation"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">15.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Anchor separation:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The largest center-to-center separation sampled for the asymptote "</span>
+                <span class="s2">"anchors (the profile is extended to here so the ≈0 tail is "</span>
+                <span class="s2">"represented out to this distance)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;wall ceiling&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">200.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall coverage up to:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The most repulsive interaction energy the wall coverage samples up &quot;</span>
-                <span class="s2">&quot;to (measured from the far-point asymptote, like all the ΔE levels). &quot;</span>
-                <span class="s2">&quot;The inward scan is extended until ΔE reaches this ceiling, and the &quot;</span>
-                <span class="s2">&quot;wall configurations are spread in energy from the repulsive-wall &quot;</span>
-                <span class="s2">&quot;cap up to here.&quot;</span>
+        <span class="s2">"wall coverage"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"no"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"boolean"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"no"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Add repulsive-wall coverage:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Energy-stratified selection caps the repulsive side at the largest "</span>
+                <span class="s2">"positive 'ΔE level' (~+5·kBT), so the training set gets no points "</span>
+                <span class="s2">"on the steep repulsive wall above that and a machine-learned force "</span>
+                <span class="s2">"field extrapolates the wall too softly -- a stability risk under "</span>
+                <span class="s2">"high-temperature or non-equilibrium dynamics. With this on, the "</span>
+                <span class="s2">"kept set is supplemented with short-separation configurations "</span>
+                <span class="s2">"walked up the wall to 'Wall coverage up to', spread in energy, so "</span>
+                <span class="s2">"the hard wall is sampled directly. Off by default (a robustness / "</span>
+                <span class="s2">"high-T add-on that costs extra energy evaluations)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;wall energy spacing&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mf">25.0</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;kJ/mol&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;.1f&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall coverage spacing:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The interaction-energy bin width of the wall coverage, from the &quot;</span>
-                <span class="s2">&quot;repulsive-wall cap up to &#39;Wall coverage up to&#39; (smaller = a denser &quot;</span>
-                <span class="s2">&quot;sampling of the wall).&quot;</span>
+        <span class="s2">"wall ceiling"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">200.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"kJ/mol"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Wall coverage up to:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The most repulsive interaction energy the wall coverage samples up "</span>
+                <span class="s2">"to (measured from the far-point asymptote, like all the ΔE levels). "</span>
+                <span class="s2">"The inward scan is extended until ΔE reaches this ceiling, and the "</span>
+                <span class="s2">"wall configurations are spread in energy from the repulsive-wall "</span>
+                <span class="s2">"cap up to here."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;wall configurations per bin&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;integer&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Wall configurations per bin:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The number of configurations to keep in each energy bin of the &quot;</span>
-                <span class="s2">&quot;wall coverage (chosen for geometric diversity over orientations). &quot;</span>
-                <span class="s2">&quot;Like the long-range tail coverage, the wall configurations come &quot;</span>
-                <span class="s2">&quot;OUT of &#39;target configurations&#39; (they are not added on top), so &quot;</span>
-                <span class="s2">&quot;raise the target to keep the same coverage of the attractive &quot;</span>
-                <span class="s2">&quot;region.&quot;</span>
+        <span class="s2">"wall energy spacing"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mf">25.0</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"float"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"kJ/mol"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">".1f"</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Wall coverage spacing:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The interaction-energy bin width of the wall coverage, from the "</span>
+                <span class="s2">"repulsive-wall cap up to 'Wall coverage up to' (smaller = a denser "</span>
+                <span class="s2">"sampling of the wall)."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;separations&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;Å&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Separations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;An explicit list of gaps beyond contact (e.g. &quot;</span>
-                <span class="s2">&quot;&#39;-0.5, 0.0, 0.5, 1:5:0.5&#39;), used when spacing is &#39;explicit&#39;.&quot;</span>
+        <span class="s2">"wall configurations per bin"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"integer"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Wall configurations per bin:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The number of configurations to keep in each energy bin of the "</span>
+                <span class="s2">"wall coverage (chosen for geometric diversity over orientations). "</span>
+                <span class="s2">"Like the long-range tail coverage, the wall configurations come "</span>
+                <span class="s2">"OUT of 'target configurations' (they are not added on top), so "</span>
+                <span class="s2">"raise the target to keep the same coverage of the attractive "</span>
+                <span class="s2">"region."</span>
+            <span class="p">),</span>
+        <span class="p">},</span>
+        <span class="s2">"separations"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">"Å"</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Separations:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"An explicit list of gaps beyond contact (e.g. "</span>
+                <span class="s2">"'-0.5, 0.0, 0.5, 1:5:0.5'), used when spacing is 'explicit'."</span>
             <span class="p">),</span>
         <span class="p">},</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
         <span class="c1"># Output: a new system of dimer conformers</span>
         <span class="c1"># ------------------------------------------------------------------ #</span>
-        <span class="s2">&quot;system name&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;from monomers&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;from monomers&quot;</span><span class="p">,),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Name the dimer system:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;The name for the new system holding the dimer configurations. &quot;</span>
-                <span class="s2">&quot;&#39;from monomers&#39; builds it from the two monomer names; otherwise &quot;</span>
-                <span class="s2">&quot;the literal text is used.&quot;</span>
+        <span class="s2">"system name"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"from monomers"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"from monomers"</span><span class="p">,),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Name the dimer system:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"The name for the new system holding the dimer configurations. "</span>
+                <span class="s2">"'from monomers' builds it from the two monomer names; otherwise "</span>
+                <span class="s2">"the literal text is used."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;configuration name&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;orientation,distance&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;orientation,distance&quot;</span><span class="p">,</span> <span class="s2">&quot;separation&quot;</span><span class="p">,</span> <span class="s2">&quot;sequential&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Name the configurations:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;How to name each generated configuration. &#39;orientation,distance&#39; &quot;</span>
-                <span class="s2">&quot;labels them by orientation and point index (1,1  1,2  ...  2,1  &quot;</span>
-                <span class="s2">&quot;...) so the points of one scan group together; &#39;separation&#39; &quot;</span>
-                <span class="s2">&quot;labels them by their separation; &#39;sequential&#39; numbers them 1, 2, &quot;</span>
-                <span class="s2">&quot;... across all configurations. A comma (not &#39;/&#39;) is used since &quot;</span>
-                <span class="s2">&quot;&#39;/&#39; separates system and configuration names elsewhere.&quot;</span>
+        <span class="s2">"configuration name"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"orientation,distance"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"orientation,distance"</span><span class="p">,</span> <span class="s2">"separation"</span><span class="p">,</span> <span class="s2">"sequential"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Name the configurations:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"How to name each generated configuration. 'orientation,distance' "</span>
+                <span class="s2">"labels them by orientation and point index (1,1  1,2  ...  2,1  "</span>
+                <span class="s2">"...) so the points of one scan group together; 'separation' "</span>
+                <span class="s2">"labels them by their separation; 'sequential' numbers them 1, 2, "</span>
+                <span class="s2">"... across all configurations. A comma (not '/') is used since "</span>
+                <span class="s2">"'/' separates system and configuration names elsewhere."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;save scan variables as properties&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;yes&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;boolean&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Save scan variables as properties:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Whether to store the separation, gap, and orientation index on &quot;</span>
-                <span class="s2">&quot;each configuration as properties, for downstream filtering.&quot;</span>
+        <span class="s2">"save scan variables as properties"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"yes"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"boolean"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"yes"</span><span class="p">,</span> <span class="s2">"no"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Save scan variables as properties:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Whether to store the separation, gap, and orientation index on "</span>
+                <span class="s2">"each configuration as properties, for downstream filtering."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;analysis plots&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="s2">&quot;basic&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;enum&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="s2">&quot;basic&quot;</span><span class="p">,</span> <span class="s2">&quot;detailed&quot;</span><span class="p">),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;Sampling diagnostics:&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="p">(</span>
-                <span class="s2">&quot;Distribution diagnostics for the generated ensemble (separation &quot;</span>
-                <span class="s2">&quot;coverage, contact distances, approach direction, relative &quot;</span>
-                <span class="s2">&quot;orientation, and -- if interaction energies were computed -- the &quot;</span>
-                <span class="s2">&quot;ΔE distribution and flatness). &#39;none&#39; skips them. &#39;basic&#39; prints &quot;</span>
-                <span class="s2">&quot;the scalar summary and writes the combined interactive &quot;</span>
-                <span class="s2">&quot;&#39;dimer_sampling.graph&#39; for the Dashboard. &#39;detailed&#39; additionally &quot;</span>
-                <span class="s2">&quot;writes each panel as its own &#39;dimer_sampling_&lt;panel&gt;.graph&#39; for &quot;</span>
-                <span class="s2">&quot;closer inspection. Any extra image formats (png/pdf/svg/...) are &quot;</span>
-                <span class="s2">&quot;controlled by graph-formats in seamm.ini.&quot;</span>
+        <span class="s2">"analysis plots"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="s2">"basic"</span><span class="p">,</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"enum"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="p">(</span><span class="s2">"none"</span><span class="p">,</span> <span class="s2">"basic"</span><span class="p">,</span> <span class="s2">"detailed"</span><span class="p">),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"Sampling diagnostics:"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="p">(</span>
+                <span class="s2">"Distribution diagnostics for the generated ensemble (separation "</span>
+                <span class="s2">"coverage, contact distances, approach direction, relative "</span>
+                <span class="s2">"orientation, and -- if interaction energies were computed -- the "</span>
+                <span class="s2">"ΔE distribution and flatness). 'none' skips them. 'basic' prints "</span>
+                <span class="s2">"the scalar summary and writes the combined interactive "</span>
+                <span class="s2">"'dimer_sampling.graph' for the Dashboard. 'detailed' additionally "</span>
+                <span class="s2">"writes each panel as its own 'dimer_sampling_&lt;panel&gt;.graph' for "</span>
+                <span class="s2">"closer inspection. Any extra image formats (png/pdf/svg/...) are "</span>
+                <span class="s2">"controlled by graph-formats in seamm.ini."</span>
             <span class="p">),</span>
         <span class="p">},</span>
-        <span class="s2">&quot;results&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;default&quot;</span><span class="p">:</span> <span class="p">{},</span>
-            <span class="s2">&quot;kind&quot;</span><span class="p">:</span> <span class="s2">&quot;dictionary&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;default_units&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
-            <span class="s2">&quot;enumeration&quot;</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
-            <span class="s2">&quot;format_string&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="s2">&quot;results&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;help_text&quot;</span><span class="p">:</span> <span class="s2">&quot;The results to save to variables or in tables.&quot;</span><span class="p">,</span>
+        <span class="s2">"results"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"default"</span><span class="p">:</span> <span class="p">{},</span>
+            <span class="s2">"kind"</span><span class="p">:</span> <span class="s2">"dictionary"</span><span class="p">,</span>
+            <span class="s2">"default_units"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">"enumeration"</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(),</span>
+            <span class="s2">"format_string"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="s2">"description"</span><span class="p">:</span> <span class="s2">"results"</span><span class="p">,</span>
+            <span class="s2">"help_text"</span><span class="p">:</span> <span class="s2">"The results to save to variables or in tables."</span><span class="p">,</span>
         <span class="p">},</span>
     <span class="p">}</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">defaults</span><span class="o">=</span><span class="p">{},</span> <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Initialize the parameters, by default with the parameters defined above</span>
 
 <span class="sd">        Parameters</span>
@@ -1114,9 +1082,9 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        None</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
 
-        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;DimerBuilderParameters.__init__&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">"DimerBuilderParameters.__init__"</span><span class="p">)</span>
 
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
             <span class="n">defaults</span><span class="o">=</span><span class="p">{</span>
@@ -1124,7 +1092,15 @@
                 <span class="o">**</span><span class="n">defaults</span><span class="p">,</span>
             <span class="p">},</span>
             <span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="p">,</span>
-        <span class="p">)</span></div>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="DimerBuilderParameters.update">
+<a class="viewcode-back" href="../../api/dimer_builder_step.html#dimer_builder_step.dimer_builder_parameters.DimerBuilderParameters.update">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""Update from a dictionary, translating the legacy 'monomer A' /</span>
+<span class="sd">        'monomer B' source entries from flowcharts saved before 2026.9.18."""</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">_translate_legacy_monomers</span><span class="p">(</span><span class="n">data</span><span class="p">))</span></div>
+</div>
 
 </pre></div>
 
@@ -1155,8 +1131,8 @@
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=cb8930eaaf36d9849b67"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=cb8930eaaf36d9849b67"></script>
 
   <footer class="bd-footer">
 <div class="bd-footer__inner bd-page-width">
@@ -1168,7 +1144,7 @@
         <div class="footer-item">
 <p class="theme-version">
   <!-- # L10n: Setting the PST URL as an argument as this does not need to be localized -->
-  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.20.0.
+  Built with the <a href="https://pydata-sphinx-theme.readthedocs.io/en/stable/index.html">PyData Sphinx Theme</a> 0.21.0.
 </p></div>
       
     </div>
