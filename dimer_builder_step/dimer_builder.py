@@ -54,21 +54,32 @@ def vdw_radii(symbols):
     numpy.ndarray
         The van der Waals radii in Å, in the same order as ``symbols``.
     """
-    import mendeleev
+    missing = sorted({s for s in symbols if s not in _VDW_RADII})
+    if missing:
+        import gc
 
-    elements = mendeleev.element(list(symbols))
-    if not isinstance(elements, (list, tuple)):
-        elements = [elements]
+        import mendeleev
 
-    radii = []
-    for element in elements:
-        r = element.vdw_radius
-        if r is None:
-            r = element.covalent_radius_pyykko
-        if r is None:
-            r = 150.0
-        radii.append(r / 100.0)  # picometres -> Å
-    return np.array(radii)
+        elements = mendeleev.element(missing)
+        if not isinstance(elements, (list, tuple)):
+            elements = [elements]
+        for symbol, element in zip(missing, elements):
+            r = element.vdw_radius
+            if r is None:
+                r = element.covalent_radius_pyykko
+            if r is None:
+                r = 150.0
+            _VDW_RADII[symbol] = r / 100.0  # picometres -> Å
+        del elements
+        # mendeleev leaves its SQLAlchemy sessions to the garbage collector.
+        # Collect them here, in this thread: collected later in a task pool's
+        # worker thread, SQLite refuses to close them and logs alarming errors.
+        gc.collect()
+    return np.array([_VDW_RADII[s] for s in symbols])
+
+
+#: van der Waals radii (Å) looked up so far
+_VDW_RADII = {}
 
 
 class _ProgressReporter:
@@ -862,12 +873,15 @@ class DimerBuilder(seamm.Node):
         return method, basis
 
     def _open_energy_engine(self, elements, charge, multiplicity):
-        """Start an MDI engine for the dimer from the upstream model chemistry.
+        """The energies of the dimer from the upstream model chemistry.
 
-        Returns a started ``seamm_mdi.MDIEngine`` or raises with guidance if no
-        MDI-capable model chemistry is available.
+        Returns an object with ``set_coordinates``/``energy`` for single points,
+        ``energies`` for a whole grid of geometries, ``close`` and
+        ``n_energy_calls``: a started MDI engine, or -- when ``seamm_exec``'s
+        Evaluator chooses tasks for the model chemistry (ORCA, or a job whose
+        tasks go to a queue) -- tasks, so a grid's points run concurrently.
         """
-        from seamm_mdi import MDIEngine
+        from seamm_exec import Evaluator
 
         try:
             mc = self.get_variable("_model_chemistry")
@@ -877,14 +891,27 @@ class DimerBuilder(seamm.Node):
                 "Model Chemistry step before the Dimer Builder step."
             )
         options = mc.get("options", {}) if isinstance(mc, dict) else {}
-        if not options.get("mdi_capable", False):
+        self._energy_model = mc.get("level", mc.get("method", "the model chemistry"))
+        try:
+            evaluator = Evaluator(self, mc, properties=("energy",), name="DimerBuilder")
+        except ValueError:
             raise ValueError(
-                f"The model chemistry '{mc.get('level', mc)}' is not MDI-capable; "
-                "the 'energy' contact method needs an MDI engine such as MOPAC or "
-                "xTB."
+                f"The model chemistry '{mc.get('level', mc)}' can be evaluated "
+                "neither over MDI nor as separate calculations; the 'energy' "
+                "contact method needs one such as MOPAC, xTB or ORCA."
+            )
+        if evaluator.path == "batch":
+            self._n_energy_sets = getattr(self, "_n_energy_sets", 0) + 1
+            return _TaskEnergies(
+                evaluator,
+                elements,
+                charge,
+                multiplicity,
+                prefix=f"e{self._n_energy_sets:03d}-",
             )
 
-        self._energy_model = mc.get("level", mc.get("method", "the model chemistry"))
+        from seamm_mdi import MDIEngine
+
         step = self.flowchart.plugin_manager.get(mc["step"])
         executor = self.flowchart.executor
         seamm_options = self.global_options
@@ -906,7 +933,7 @@ class DimerBuilder(seamm.Node):
 
         engine = MDIEngine(build_argv, elements=elements, name="DimerBuilder")
         engine.start()
-        return engine
+        return _MDIEnergies(engine)
 
     def _energy_anchor(self, engine, assemble, seed, P):
         """Locate the energy minimum along the approach axis (the scan anchor).
@@ -924,11 +951,10 @@ class DimerBuilder(seamm.Node):
         if hi <= lo:
             hi = lo + 1.0
 
-        def energy_at(d):
-            engine.set_coordinates(assemble(d), units="Å")
-            return engine.energy(units="hartree")
+        def energies_at(ds):
+            return _energies(engine, [assemble(float(d)) for d in ds], units="hartree")
 
-        d_min, k, n = self._minimize_on_grid(energy_at, lo, hi, 11)
+        d_min, k, n = self._minimize_on_grid(None, lo, hi, 11, many=energies_at)
         # If the minimum sits at the outer edge the energy is still falling as the
         # molecules separate -- this orientation has no binding well in range, so
         # anchor the scan at the geometric (vdW) contact instead.
@@ -937,7 +963,7 @@ class DimerBuilder(seamm.Node):
         return d_min
 
     @staticmethod
-    def _minimize_on_grid(func, lo, hi, n):
+    def _minimize_on_grid(func, lo, hi, n, many=None):
         """Minimize a 1-D function on a uniform grid, refining parabolically.
 
         Coarse but robust and derivative-free -- enough to anchor the scan.
@@ -945,7 +971,11 @@ class DimerBuilder(seamm.Node):
         the caller can tell an interior minimum from one pinned at an edge).
         """
         ds = np.linspace(lo, hi, n)
-        es = np.array([func(float(d)) for d in ds])
+        if many is not None:
+            # The whole grid at once (concurrently when run as tasks)
+            es = np.array(many(ds), dtype=float)
+        else:
+            es = np.array([func(float(d)) for d in ds])
         k = int(np.argmin(es))
         d_min = float(ds[k])
         if 0 < k < n - 1:
@@ -1003,7 +1033,7 @@ class DimerBuilder(seamm.Node):
         # 2. Outward branch: anchor -> outer separation (tail + far reference).
         d_hi = max_sep if max_sep > anchor + 0.5 else anchor + 3.0
         ds = list(np.linspace(anchor, d_hi, n))
-        es = [energy_at(d) for d in ds]
+        es = list(_energies(engine, [assemble(float(d)) for d in ds], units="hartree"))
         e_ref = es[-1]  # E at maximum separation ≈ E_A + E_B
         step = (d_hi - anchor) / (n - 1)
 
@@ -1602,13 +1632,11 @@ class DimerBuilder(seamm.Node):
         max_sep = P["maximum separation"].to("Å").magnitude
         hartree_to_kJmol = Q_(1.0, "hartree").to("kJ/mol").magnitude
 
-        def energy_at(d):
-            engine.set_coordinates(assemble(float(d)), units="Å")
-            return engine.energy(units="hartree")
-
         ds = np.unique(np.asarray(distances, dtype=float))
-        e_ref = energy_at(max(max_sep, float(ds[-1])))
-        es = np.array([energy_at(d) for d in ds])
+        points = [max(max_sep, float(ds[-1]))] + [float(d) for d in ds]
+        values = _energies(engine, [assemble(d) for d in points], units="hartree")
+        e_ref = values[0]
+        es = np.array(values[1:])
         dE = (es - e_ref) * hartree_to_kJmol
         De = float(-dE.min()) if dE.min() < 0.0 else 0.0
         return self._make_interpolator(ds, dE), De
@@ -2135,3 +2163,88 @@ class DimerBuilder(seamm.Node):
     @staticmethod
     def _truthy(value):
         return value is True or (isinstance(value, str) and value.lower() == "yes")
+
+
+class _MDIEnergies:
+    """A started MDI engine, with ``energies`` for a grid of geometries."""
+
+    def __init__(self, engine):
+        self.engine = engine
+
+    def __getattr__(self, name):
+        return getattr(self.engine, name)
+
+    def energies(self, geometries, units="hartree"):
+        values = []
+        for xyz in geometries:
+            self.engine.set_coordinates(xyz, units="Å")
+            values.append(self.engine.energy(units=units))
+        return values
+
+
+class _TaskEnergies:
+    """Energies of a dimer as tasks, through ``seamm_exec``'s Evaluator.
+
+    A grid's geometries are submitted together and run concurrently (or
+    bundled on the job's queue); a single point is a grid of one. Each
+    calculation is a task of the Dimer Builder's step, so a rerun keeps the
+    finished ones.
+    """
+
+    def __init__(self, evaluator, elements, charge, multiplicity, prefix):
+        self.evaluator = evaluator
+        self.elements = list(elements)
+        self.charge = charge
+        self.multiplicity = multiplicity
+        self.prefix = prefix
+        self.n_energy_calls = 0
+        self._count = 0
+        self._xyz = None
+
+    def supports(self, command):
+        return False
+
+    def set_coordinates(self, xyz, units="Å"):
+        self._xyz = Q_(np.asarray(xyz, dtype=float), units).m_as("Å")
+
+    def energy(self, units="hartree"):
+        return self.energies([self._xyz], units=units)[0]
+
+    def energies(self, geometries, units="hartree"):
+        from seamm_exec import Geometry
+
+        keys = []
+        for xyz in geometries:
+            self._count += 1
+            key = f"{self.prefix}{self._count:06d}"
+            self.evaluator.submit(
+                Geometry(self.elements, xyz, self.charge, self.multiplicity), key=key
+            )
+            keys.append(key)
+        results = {r.key: r for r in self.evaluator.results()}
+        values = []
+        for key in keys:
+            result = results[key]
+            if not result.ok:
+                raise RuntimeError(
+                    f"The energy calculation '{key}' failed: {result.reason}"
+                )
+            values.append(Q_(result.energy, "kJ/mol").m_as(units))
+        self.n_energy_calls += len(keys)
+        return values
+
+    def close(self):
+        self.evaluator.close()
+
+
+def _energies(engine, geometries, units="hartree"):
+    """The energies of several geometries: all at once where the engine can,
+    else one by one over ``set_coordinates``/``energy``."""
+    many = getattr(engine, "energies", None)
+    if many is not None:
+        return many(geometries, units=units)
+    values = []
+    for xyz in geometries:
+        engine.set_coordinates(xyz, units="Å")
+        values.append(engine.energy(units=units))
+    return values
