@@ -69,15 +69,15 @@ engine to find the energy **minimum** along each approach direction and anchors
 the scan there; orientations with no binding well fall back to the van der Waals
 contact. This requires a **Model Chemistry step before the Dimer Builder step**
 to define the engine and method; the dialog reminds you if one is missing. The
-engine is driven over `MDI <https://molssi-mdi.github.io/MDI_Library/>`_, so any
-MDI-capable model chemistry works -- **MOPAC** or **xTB** (semiempirical), or
-**ORCA** (HF, MP2, or an analytic-gradient DFT functional; ORCA methods without
-an analytic gradient, such as DLPNO-CCSD(T), are not offered for this). A cheap
+semiempirical engines (**MOPAC**, **xTB**) are driven over `MDI
+<https://molssi-mdi.github.io/MDI_Library/>`_ as resident engines; **ORCA**
+runs the points as separate calculations, a whole grid of separations at once
+(concurrently on this machine, or batched on the job's cluster queue), and so
+does MOPAC when the job's calculations go to a cluster queue. A cheap
 method is usually the right choice: the energy only *places* the scan, it does
-not produce the final data set, and ORCA in particular runs its binary once per
-geometry (reusing orbitals between points) so it is heavier than the
-semiempirical engines. The step reports which model chemistry was used and how
-many times it was called.
+not produce the final data set, and ORCA is much heavier than the semiempirical
+engines. The step reports which model chemistry was used and how many times it
+was called.
 
 Energy-stratified sampling
 --------------------------

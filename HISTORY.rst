@@ -1,6 +1,15 @@
 =======
 History
 =======
+2026.10.3 -- Energy contacts with ORCA as separate calculations, on this machine or a cluster
+    * With an ORCA model chemistry, the energy-based contact search runs the points as
+      separate calculations, a whole grid of separations at once: concurrently on this
+      machine, or batched on the job's cluster queue (MOPAC too, on a queue). MOPAC and
+      xTB on this machine keep the warm MDI engine. The contacts found are the same.
+    * The shared CI now runs on uv: ``devtools/conda-envs/test_env.yaml`` is removed,
+      so ``requirements.txt`` is the one dependency list.
+    * Requires seamm-exec 2026.10.3 or later.
+
 2026.9.18 -- Standard structure selection for the monomer sources
     * Where monomer A and monomer B come from is now SEAMM's standard structure
       selection, one block per monomer: the current system, all systems, or systems
