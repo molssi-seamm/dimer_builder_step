@@ -1122,3 +1122,24 @@ def test_build_mode_b_honors_user_subsets(db_two_waters):
     out_ids = conf.atoms.ids
     # Movable follows the user's choice: the first molecule.
     assert set(_subset_atom_ids(db, conf, "movable")) == set(out_ids[:3])
+
+
+def test_mdi_method_and_basis_take_the_users_basis():
+    """With the Model Chemistry fix, mdi_basis_arg is the user's basis; the
+    engine must be launched with it (it used to be the advertised def2-SVP)."""
+    from dimer_builder_step.dimer_builder import DimerBuilder
+
+    mc = {
+        "method": "wB97X-D3",
+        "basis": "def2-TZVP",
+        "options": {"mdi_method_arg": "WB97X-D3", "mdi_basis_arg": "def2-TZVP"},
+    }
+    assert DimerBuilder._mdi_method_and_basis(mc, mc["options"]) == (
+        "WB97X-D3",
+        "def2-TZVP",
+    )
+    mopac = {"method": "PM6", "basis": None, "options": {"mdi_method_arg": "PM6"}}
+    assert DimerBuilder._mdi_method_and_basis(mopac, mopac["options"]) == (
+        "PM6",
+        None,
+    )
