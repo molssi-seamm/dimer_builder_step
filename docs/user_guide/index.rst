@@ -72,7 +72,8 @@ to define the engine and method; the dialog reminds you if one is missing. The
 semiempirical engines (**MOPAC**, **xTB**) are driven over `MDI
 <https://molssi-mdi.github.io/MDI_Library/>`_ as resident engines; **ORCA**
 runs the points as separate calculations, a whole grid of separations at once
-(concurrently on this machine, or batched on the job's cluster queue). A cheap
+(concurrently on this machine, or batched on the job's cluster queue), and so
+does MOPAC when the job's calculations go to a cluster queue. A cheap
 method is usually the right choice: the energy only *places* the scan, it does
 not produce the final data set, and ORCA is much heavier than the semiempirical
 engines. The step reports which model chemistry was used and how many times it
