@@ -1143,3 +1143,42 @@ def test_mdi_method_and_basis_take_the_users_basis():
         "PM6",
         None,
     )
+
+
+def test_task_energies_map_out_of_order_results_by_key():
+    """Tasks finish in any order; each energy goes back to its geometry."""
+    import numpy as np
+    from seamm_exec import EvaluatorResult
+    from seamm_util import Q_
+
+    from dimer_builder_step.dimer_builder import _TaskEnergies
+
+    class FakeEvaluator:
+        def __init__(self):
+            self.pending = {}
+
+        def submit(self, geometry, key):
+            # energy (kJ/mol) = 100 x the first z coordinate, to recognize it
+            self.pending[key] = (
+                100.0 * geometry.atoms.get_coordinates(as_array=True)[0, 2]
+            )
+            return key
+
+        def results(self):
+            items = list(self.pending.items())
+            self.pending = {}
+            for key, energy in reversed(items):  # last submitted finishes first
+                yield EvaluatorResult(key=key, ok=True, energy=energy)
+
+        def close(self):
+            pass
+
+    energies = _TaskEnergies(FakeEvaluator(), [1, 1], 0, 1, prefix="e001-")
+    geometries = [np.array([[0, 0, z], [0, 0, z + 1]]) for z in (0.1, 0.2, 0.3)]
+    values = energies.energies(geometries, units="kJ/mol")
+    assert values == pytest.approx([10.0, 20.0, 30.0])
+    assert energies.n_energy_calls == 3
+    energies.set_coordinates(geometries[1], units="Å")
+    assert energies.energy(units="hartree") == pytest.approx(
+        Q_(20.0, "kJ/mol").m_as("hartree")
+    )
