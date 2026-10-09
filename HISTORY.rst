@@ -1,6 +1,16 @@
 =======
 History
 =======
+2026.10.9 -- Bugfix: clear errors for an ambiguous or mixed monomer selection
+    * Selecting a monomer's system by "name is" when no system, or several, have that
+      name stopped the build with an obscure IndexError from deep inside (two
+      structure files read with the same system name). It now stops at once, saying
+      how many systems have the name and how to give them distinct names.
+    * A monomer's structures must all be the same molecule, with its atoms in the same
+      order: the first is the template for all of them. A selection that mixes
+      molecules (e.g. "all" systems holding different molecules) now stops with an
+      error naming two that differ, instead of building wrong dimers.
+
 2026.10.3 -- Energy contacts with ORCA as separate calculations, on this machine or a cluster
     * With an ORCA model chemistry, the energy-based contact search runs the points as
       separate calculations, a whole grid of separations at once: concurrently on this

@@ -685,9 +685,39 @@ class DimerBuilder(seamm.Node):
             key: P[monomer_key]
             for key, monomer_key in monomer_selection_keys(prefix).items()
         }
-        return seamm.standard_parameters.select_configurations(
+        how = sub.get("source systems")
+        if isinstance(how, str) and how.strip() == "name is":
+            name = str(sub.get("source system name", ""))
+            n = sum(1 for system in system_db.systems if system.name == name)
+            if n != 1:
+                raise ValueError(
+                    f"{prefix}: {'no system is' if n == 0 else f'{n} systems are'} "
+                    f"named '{name}'; 'name is' needs exactly one. "
+                    + (
+                        "Give the structures read distinct system names (e.g. "
+                        "Read Structure's 'System name')."
+                        if n > 1
+                        else "Check the name, or the variable that gives it."
+                    )
+                )
+        pool = seamm.standard_parameters.select_configurations(
             system_db, sub, errors=False
         )
+        # Every structure of a pool is a conformer of the same molecule: the
+        # first serves as the template for all of them.
+        if len(pool) > 1:
+            first = list(pool[0].atoms.atomic_numbers)
+            for configuration in pool[1:]:
+                if list(configuration.atoms.atomic_numbers) != first:
+                    raise ValueError(
+                        f"{prefix}: the structures selected are not all the same "
+                        f"molecule: '{pool[0].system.name}' / '{pool[0].name}' has "
+                        f"{pool[0].formula[0]}, but '{configuration.system.name}' / "
+                        f"'{configuration.name}' has {configuration.formula[0]} (or "
+                        "its atoms in another order). Select one molecule's "
+                        "conformers for each monomer."
+                    )
+        return pool
 
     def _pool_description(self, P, prefix):
         """A phrase describing where ``prefix`` comes from, for the description."""
