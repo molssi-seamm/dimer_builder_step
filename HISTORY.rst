@@ -10,6 +10,7 @@ History
       order: the first is the template for all of them. A selection that mixes
       molecules (e.g. "all" systems holding different molecules) now stops with an
       error naming two that differ, instead of building wrong dimers.
+    * Internal: requires Python 3.12.
 
 2026.10.3 -- Energy contacts with ORCA as separate calculations, on this machine or a cluster
     * With an ORCA model chemistry, the energy-based contact search runs the points as
