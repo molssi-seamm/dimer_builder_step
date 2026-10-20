@@ -7,7 +7,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.10.9 documentation</title>
+    <title>History &#8212; SEAMM Dimer Builder Plug-in 2026.10.20 documentation</title>
   
   
   
@@ -40,7 +40,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=18bd87630a240e9c25be" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=18bd87630a240e9c25be" />
 
-    <script src="_static/documentation_options.js?v=465c9eed"></script>
+    <script src="_static/documentation_options.js?v=980f7468"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
@@ -54,7 +54,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="color-scheme" content="light dark"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.10.9" />
+  <meta name="docsearch:version" content="2026.10.20" />
   
     
     <script src="_static/searchtools.js"></script>
@@ -511,6 +511,15 @@
   <section id="history">
 <h1>History<a class="headerlink" href="#history" title="Link to this heading">#</a></h1>
 <dl>
+<dt>2026.10.20 – Bugfix: one failed energy stopped the whole step</dt><dd><ul class="simple">
+<li><p>A point whose energy could not be calculated, e.g. because the SCF did not
+converge, stopped the step and lost all the other points. Such a point is now
+left out: the scan carries on without it, a failure on the way in is taken as
+the repulsive wall, an orientation with no energies at all is skipped, and no
+configuration is made at a failed distance. The number of failed energies is
+given in the output.</p></li>
+</ul>
+</dd>
 <dt>2026.10.9 – Bugfix: clear errors for an ambiguous or mixed monomer selection</dt><dd><ul class="simple">
 <li><p>Selecting a monomer’s system by “name is” when no system, or several, have that
 name stopped the build with an obscure IndexError from deep inside (two
