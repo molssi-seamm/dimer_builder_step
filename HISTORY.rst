@@ -1,6 +1,14 @@
 =======
 History
 =======
+2026.10.20 -- Bugfix: one failed energy stopped the whole step
+    * A point whose energy could not be calculated, e.g. because the SCF did not
+      converge, stopped the step and lost all the other points. Such a point is now
+      left out: the scan carries on without it, a failure on the way in is taken as
+      the repulsive wall, an orientation with no energies at all is skipped, and no
+      configuration is made at a failed distance. The number of failed energies is
+      given in the output.
+
 2026.10.9 -- Bugfix: clear errors for an ambiguous or mixed monomer selection
     * Selecting a monomer's system by "name is" when no system, or several, have that
       name stopped the build with an obscure IndexError from deep inside (two
