@@ -1182,3 +1182,91 @@ def test_task_energies_map_out_of_order_results_by_key():
     assert energies.energy(units="hartree") == pytest.approx(
         Q_(20.0, "kJ/mol").m_as("hartree")
     )
+
+
+# --------------------------------------------------------------------------- #
+# A point whose energy failed (NaN, e.g. an SCF that did not converge) is left
+# out instead of stopping the step (science, 2026-10-20: Li+ dimers with tblite)
+# --------------------------------------------------------------------------- #
+
+
+class _FailingLJEngine(_LJEngine):
+    """The LJ engine, failing (NaN) inside ``fail_inside`` Å or in ``fail_band``."""
+
+    def __init__(self, *args, fail_inside=None, fail_band=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fail_inside = fail_inside
+        self.fail_band = fail_band
+
+    def _energy(self):
+        a = self._xyz[: self.nA].mean(axis=0)
+        b = self._xyz[self.nA :].mean(axis=0)
+        r = float(np.linalg.norm(b - a))
+        if self.fail_inside is not None and r < self.fail_inside:
+            return float("nan")
+        if self.fail_band is not None and self.fail_band[0] <= r <= self.fail_band[1]:
+            return float("nan")
+        return super()._energy()
+
+
+def test_minimize_on_grid_ignores_failed_points():
+    node = dimer_builder_step.DimerBuilder()
+    values = {}
+
+    def many(ds):
+        out = [(d - 3.0) ** 2 for d in ds]
+        out[0] = float("nan")
+        values["n"] = len(out)
+        return out
+
+    d_min, k, n = node._minimize_on_grid(None, 1.0, 5.0, 9, many=many)
+    assert d_min == pytest.approx(3.0, abs=1.0e-6)
+    d_min, k, n = node._minimize_on_grid(
+        None, 1.0, 5.0, 9, many=lambda ds: [float("nan")] * len(ds)
+    )
+    assert k == n - 1  # no energy: treated as no well in range
+
+
+def test_energy_profile_stops_at_a_failed_inner_point():
+    """A failure on the inward walk is taken as the wall; the rest is kept."""
+    node = dimer_builder_step.DimerBuilder()
+    node._n_failed_energies = 0
+    engine = _FailingLJEngine(nA=3, sigma=3.0, eps=0.01, fail_inside=3.0)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    ds, dE, d_min, De = node._energy_profile(engine, assemble, seed=3.0, P=_P())
+    assert np.isfinite(dE).all()
+    assert ds.min() >= 3.0
+    assert d_min == pytest.approx(3.0 * 2.0 ** (1.0 / 6.0), abs=0.5)
+    assert node._n_failed_energies > 0
+
+
+def test_energy_profile_drops_a_failed_far_point():
+    """A failure at a large separation (where tblite failed for Li+-EC) is left
+    out; the reference is the farthest point that worked."""
+    node = dimer_builder_step.DimerBuilder()
+    node._n_failed_energies = 0
+    engine = _FailingLJEngine(nA=3, sigma=3.0, eps=0.01, fail_band=(6.5, 7.5))
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    ds, dE, d_min, De = node._energy_profile(engine, assemble, seed=3.0, P=_P())
+    assert np.isfinite(dE).all()
+    assert not ((ds >= 6.5) & (ds <= 7.5)).any()
+    assert De == pytest.approx(0.01 * 2625.4996, rel=0.1)
+
+
+def test_no_energy_skips_the_orientation():
+    node = dimer_builder_step.DimerBuilder()
+    node._n_failed_energies = 0
+    engine = _FailingLJEngine(nA=3, sigma=3.0, eps=0.01, fail_inside=100.0)
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    assert node._plan_scan(engine, assemble, 3.0, _P()) is None
+
+
+def test_geometric_scan_leaves_out_failed_distances():
+    node = dimer_builder_step.DimerBuilder()
+    node._n_failed_energies = 0
+    engine = _FailingLJEngine(nA=3, sigma=3.0, eps=0.01, fail_band=(4.0, 4.6))
+    assemble = _assemble_along_z(np.zeros((3, 3)), np.zeros((3, 3)))
+    P = _P(**{"contact method": "energy", "spacing": "geometric"})
+    distances, gap_ref, dE_at, De = node._plan_scan(engine, assemble, 3.2, P)
+    assert not any(4.0 <= d <= 4.6 for d in distances)
+    assert all(np.isfinite(dE_at(float(d))) for d in distances)

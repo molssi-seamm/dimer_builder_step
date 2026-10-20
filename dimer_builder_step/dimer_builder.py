@@ -475,6 +475,12 @@ class DimerBuilder(seamm.Node):
                 f"chemistry '{stats['model_chemistry']}', which was evaluated "
                 f"{stats['n_energy_calls']} times."
             )
+            n_failed = stats.get("n_failed_energies", 0)
+            if n_failed:
+                text += (
+                    f" {n_failed} of the energies failed (e.g. the SCF did not "
+                    "converge); those points were left out."
+                )
             printer.important(__(text, indent=4 * " "))
 
         level = P.get("analysis plots", "none") if P else "none"
@@ -982,7 +988,11 @@ class DimerBuilder(seamm.Node):
             hi = lo + 1.0
 
         def energies_at(ds):
-            return _energies(engine, [assemble(float(d)) for d in ds], units="hartree")
+            values = _energies(
+                engine, [assemble(float(d)) for d in ds], units="hartree"
+            )
+            self._count_failed(values)
+            return values
 
         d_min, k, n = self._minimize_on_grid(None, lo, hi, 11, many=energies_at)
         # If the minimum sits at the outer edge the energy is still falling as the
@@ -1006,9 +1016,12 @@ class DimerBuilder(seamm.Node):
             es = np.array(many(ds), dtype=float)
         else:
             es = np.array([func(float(d)) for d in ds])
-        k = int(np.argmin(es))
+        if not np.isfinite(es).any():
+            # No energy converged: as if the minimum were at the outer edge
+            return float(ds[-1]), n - 1, n
+        k = int(np.nanargmin(es))
         d_min = float(ds[k])
-        if 0 < k < n - 1:
+        if 0 < k < n - 1 and np.isfinite(es[k - 1 : k + 2]).all():
             e0, e1, e2 = es[k - 1], es[k], es[k + 1]
             denom = e0 - 2.0 * e1 + e2
             if denom > 0.0:  # concave up -> a real interior minimum
@@ -1064,6 +1077,13 @@ class DimerBuilder(seamm.Node):
         d_hi = max_sep if max_sep > anchor + 0.5 else anchor + 3.0
         ds = list(np.linspace(anchor, d_hi, n))
         es = list(_energies(engine, [assemble(float(d)) for d in ds], units="hartree"))
+        self._count_failed(es)
+        # A point whose energy failed (NaN) is left out
+        kept = [(d, e) for d, e in zip(ds, es) if np.isfinite(e)]
+        if not kept:
+            return None
+        ds = [d for d, _ in kept]
+        es = [e for _, e in kept]
         e_ref = es[-1]  # E at maximum separation ≈ E_A + E_B
         step = (d_hi - anchor) / (n - 1)
 
@@ -1079,6 +1099,10 @@ class DimerBuilder(seamm.Node):
         d = anchor - in_step
         while d >= in_floor:
             e = energy_at(d)
+            if not np.isfinite(e):
+                # The energy failed this close in: take it as the repulsive wall
+                self._count_failed([e])
+                break
             ds.insert(0, d)
             es.insert(0, e)
             e_rel = (e - e_ref) * hartree_to_kJmol
@@ -1099,6 +1123,11 @@ class DimerBuilder(seamm.Node):
         d_min = float(ds[k])
         De = float(-dE[k]) if dE[k] < 0.0 else 0.0
         return ds, dE, d_min, De
+
+    def _count_failed(self, values):
+        """Count the energies that failed (NaN), which are left out."""
+        n = int(np.count_nonzero(~np.isfinite(np.asarray(values, dtype=float))))
+        self._n_failed_energies = getattr(self, "_n_failed_energies", 0) + n
 
     def _kBT(self, P):
         """The thermal energy k_B·T (kJ/mol) for the sampling temperature."""
@@ -1634,7 +1663,10 @@ class DimerBuilder(seamm.Node):
         weighting rule.
         """
         if engine is not None and P["spacing"] == "energy-stratified":
-            ds, dE, d_min, De = self._energy_profile(engine, assemble, contact, P)
+            profile = self._energy_profile(engine, assemble, contact, P)
+            if profile is None:
+                return None  # no energy converged along this approach
+            ds, dE, d_min, De = profile
             if weight and not self._accept_orientation(De, P, rng):
                 return None
             distances = self._stratified_separations(ds, dE, d_min, De, P)
@@ -1647,7 +1679,12 @@ class DimerBuilder(seamm.Node):
             # spacing itself is geometric/linear/explicit.
             contact = self._energy_anchor(engine, assemble, contact, P)
             distances = self._separation_schedule(contact, P)
-            dE_at, De = self._interaction_energies(engine, assemble, distances, P)
+            energies = self._interaction_energies(engine, assemble, distances, P)
+            if energies is None:
+                return None  # no energy converged along this approach
+            dE_at, De, kept = energies
+            # No configuration where the energy failed
+            distances = [d for d in distances if float(d) in kept]
             return distances, contact, dE_at, De
         return self._separation_schedule(contact, P), contact, None, None
 
@@ -1664,12 +1701,21 @@ class DimerBuilder(seamm.Node):
 
         ds = np.unique(np.asarray(distances, dtype=float))
         points = [max(max_sep, float(ds[-1]))] + [float(d) for d in ds]
-        values = _energies(engine, [assemble(d) for d in points], units="hartree")
-        e_ref = values[0]
-        es = np.array(values[1:])
+        values = np.array(
+            _energies(engine, [assemble(d) for d in points], units="hartree"),
+            dtype=float,
+        )
+        self._count_failed(values)
+        es = values[1:]
+        ok = np.isfinite(es)
+        if not ok.any():
+            return None
+        ds, es = ds[ok], es[ok]
+        # The far point is the reference; if it failed, the farthest that did not
+        e_ref = values[0] if np.isfinite(values[0]) else es[-1]
         dE = (es - e_ref) * hartree_to_kJmol
         De = float(-dE.min()) if dE.min() < 0.0 else 0.0
-        return self._make_interpolator(ds, dE), De
+        return self._make_interpolator(ds, dE), De, set(float(d) for d in ds)
 
     def _emit_configurations(
         self,
@@ -1774,7 +1820,10 @@ class DimerBuilder(seamm.Node):
         which are always kept). Returns True if the orientation contributed.
         """
         if engine is not None and P["spacing"] == "energy-stratified":
-            ds, dE, d_min, De = self._energy_profile(engine, assemble, contact, P)
+            profile = self._energy_profile(engine, assemble, contact, P)
+            if profile is None:
+                return False  # no energy converged along this approach
+            ds, dE, d_min, De = profile
             if weight and not self._accept_orientation(De, P, rng):
                 return False
             dE_at = self._make_interpolator(ds, dE)
@@ -1795,6 +1844,7 @@ class DimerBuilder(seamm.Node):
 
     def _build(self, system_db, P, rng):
         """Generate the dimer configurations. Returns (system, stats)."""
+        self._n_failed_energies = 0
         # Backstop for hand-edited/scripted flowcharts (the GUI prevents this):
         # energy-stratified spacing has no meaning without an energy engine.
         if P["spacing"] == "energy-stratified" and P["contact method"] != "energy":
@@ -1947,6 +1997,7 @@ class DimerBuilder(seamm.Node):
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls
+            stats["n_failed_energies"] = getattr(self, "_n_failed_energies", 0)
         return dimer_sys, stats
 
     def _build_from_dimers(self, system_db, P, rng):
@@ -2115,6 +2166,7 @@ class DimerBuilder(seamm.Node):
         if engine is not None:
             stats["model_chemistry"] = self._energy_model
             stats["n_energy_calls"] = engine.n_energy_calls
+            stats["n_failed_energies"] = getattr(self, "_n_failed_energies", 0)
         return out_sys, stats
 
     def _system_name(self, P, name_a, name_b):
@@ -2256,9 +2308,12 @@ class _TaskEnergies:
         for key in keys:
             result = results[key]
             if not result.ok:
-                raise RuntimeError(
+                # One failed point must not stop the scan: it is left out
+                logger.warning(
                     f"The energy calculation '{key}' failed: {result.reason}"
                 )
+                values.append(float("nan"))
+                continue
             values.append(Q_(result.energy, "kJ/mol").m_as(units))
         self.n_energy_calls += len(keys)
         return values
